@@ -1,5 +1,4 @@
 use crate::structure::*;
-
 // Logic gate structure
 pub struct LogicGate {
     pub input: Vec<Pin>,
