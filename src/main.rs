@@ -10,7 +10,6 @@ use ggegui::{egui, Gui};
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Color, DrawParam, Mesh, Rect, Text, Canvas, Drawable, draw, DrawMode, Image};
 use ggez::{Context, ContextBuilder, GameError, GameResult};
-use ggez::input::mouse::MouseButton;
 
 
 struct State {
@@ -18,7 +17,7 @@ struct State {
     add_component: bool,
 	selected_gate: Option<String>,
 	input_number: u32,
-	gate_image: Option<Image>,
+	gate_image: Vec<Image>,
 	gate_paths: HashMap<String, String>,
 }
 
@@ -39,21 +38,19 @@ impl State {
 			add_component: false,
 			selected_gate: None,
 			input_number: 2,
-			gate_image: None,
+			gate_image: Vec::new(),
             gate_paths: gate_paths,
 		}
 	}
 
 	// The function to load the gate image
 	fn load_gate_image(&mut self, ctx: &mut Context, gate: &str) -> GameResult<()> {
-        // Clear the existing image
-        self.gate_image = None;
 
         // Get the path of the selected gate image
         if let Some(image_path) = self.gate_paths.get(gate) {
             // Load the new image and set it
             let image = Image::from_path(ctx, image_path)?;
-            self.gate_image = Some(image);
+            self.gate_image.push(image);
         }
 
         Ok(())
@@ -75,11 +72,6 @@ impl EventHandler for State {
 
 			// Button for the constants
 			if ui.button("Constants").clicked() {
-                /*self.add_or = true;
-                if self.or_image.is_none() {
-					let image = Image::from_path(ctx,"/or.png");
-					self.or_image = Some(image.unwrap());
-                }*/
 			}
 
 			// Button for the Muxes
@@ -140,17 +132,19 @@ impl EventHandler for State {
 	}
 
 	fn draw(&mut self, ctx: &mut Context) -> GameResult {
-		let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(217, 217, 217));
+        let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(217, 217, 217));
 
-        if let Some(image) = &self.gate_image {
+        // Draw all gate images by iterating over the `gate_images` vector
+        for (i, image) in self.gate_image.iter().enumerate() {
             let draw_params = DrawParam::default()
-                .dest(ggez::glam::Vec2::new(100.0, 100.0)) // Position the image
+                .dest(ggez::glam::Vec2::new(100.0 * (i as f32), 100.0)) // Position the images with some spacing
                 .scale(ggez::glam::Vec2::new(0.5, 0.5));   // Adjust the scale as needed
             canvas.draw(image, draw_params);
         }
 
-		canvas.draw(&self.gui, DrawParam::default().dest(ggez::glam::Vec2::ZERO));
-		canvas.finish(ctx)
+        // Draw the GUI
+        canvas.draw(&self.gui, DrawParam::default());
+        canvas.finish(ctx)
 	}
 }
 
