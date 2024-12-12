@@ -1,10 +1,18 @@
+use std::clone;
+
 use crate::structure::*;
+use crate::circuit::*;
+use ggez::{graphics::{Canvas, DrawParam, Image}, Context, GameResult};
+use ggez::glam::Vec2;
+
 // Logic gate structure
+#[derive(Debug)]
 pub struct LogicGate {
     pub input: Vec<Pin>,
     pub output: Pin,
     pub num_input: usize,
-    pub r#type: LogicGates
+    pub r#type: LogicGates,
+    pub position: ggez::glam::Vec2,  
 }
 
 impl LogicGate {
@@ -14,12 +22,12 @@ impl LogicGate {
         let gate = if !bus {
             // Create a simple logic gate
             LogicGate{
-                // Check if number bits is > 1 and return an error
+                //TODO: ignore the number of bits and create a simple gate
                 //...
 
                 // As many inputs vec elements as inputs
-                input: vec![Pin {connection: ConnectionType::Simple(Signal::Undefined), r#type: (PinType::NotSource)}; num_inputs],
-                output: Pin {connection: ConnectionType::Simple(Signal::Undefined), r#type: (PinType::Source)},
+                input: vec![Pin{value: PinValue::Single(Signal::Undefined), r#type: PinType::NotSource}; num_inputs],
+                output: Pin {value: PinValue::Single(Signal::Undefined), r#type: PinType::Source},
                 num_input: num_inputs,
                 r#type: match gate_type {
                     0 => LogicGates::And,
@@ -30,7 +38,8 @@ impl LogicGate {
                     5 => LogicGates::Xor,
                     6 => LogicGates::Xnor,
                     _ => panic!("Invalid gate"),
-                }
+                },
+                position: Vec2::new(0.0, 0.0), 
             }
             
         } else {
@@ -41,8 +50,8 @@ impl LogicGate {
                 
                 // Inner vec elements represent the bit numbers, while outer
                 // vec elements represent the number of bus
-                input: vec![ Pin {connection: ConnectionType::Bus(vec![Signal::Undefined; bits]), r#type: PinType::NotSource}; num_inputs],
-                output: Pin {connection: ConnectionType::Bus(vec![Signal::Undefined; bits]), r#type: PinType::Source},
+                input: vec![Pin{value:PinValue::Multiple(vec![Signal::Undefined; bits]), r#type: PinType::NotSource}],
+                output: Pin {value:PinValue::Multiple(vec![Signal::Undefined; bits]), r#type:PinType::Source},
                 num_input: num_inputs,
                 r#type: match gate_type {
                     0 => LogicGates::And,
@@ -53,7 +62,8 @@ impl LogicGate {
                     5 => LogicGates::Xor,
                     6 => LogicGates::Xnor,
                     _ => panic!("Input non valido per la porta logica"),
-                }
+                },
+                position: Vec2::new(0.0, 0.0), 
             }
         };
         gate
@@ -69,7 +79,7 @@ impl LogicGate {
         }
 
         for (i, signal) in signals.into_iter().enumerate() {
-            self.input[i].connection = ConnectionType::Simple(signal);
+            self.input[i].value = PinValue::Single(signal);
         }
     }
 
@@ -84,7 +94,7 @@ impl LogicGate {
 
         for (i, signal_vec) in signals.into_iter().enumerate() {
             // Set each pin's connection to a bus with the provided signal vector
-            self.input[i].connection = ConnectionType::Bus(signal_vec);
+            self.input[i].value = PinValue::Multiple(signal_vec);
         }
     }
     
@@ -100,8 +110,9 @@ impl LogicGate {
     
         // Go through all input pins and check their signals
         for pin in 0..self.num_input {
-            match self.input[pin].connection {
-                ConnectionType::Simple(signal) => {
+            match self.input[pin].value {
+                //* Check if it's a 1 bit gate
+                PinValue::Single(signal) => {
                     match signal {
                         Signal::On => {
                             // For AND/NAND and NOR
@@ -131,21 +142,21 @@ impl LogicGate {
         match self.r#type {
             LogicGates::And => {
                 if all_on {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 }
             }
             
             LogicGates::Or => {
                 if any_on {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 }
             }
     
@@ -155,12 +166,12 @@ impl LogicGate {
                     panic!("Not gate requires exactly one input");
                 }
     
-                match self.input[0].connection {
-                    ConnectionType::Simple(signal) => {
-                        self.output.connection = match signal {
-                            Signal::On => ConnectionType::Simple(Signal::Off),
-                            Signal::Off => ConnectionType::Simple(Signal::On),
-                            Signal::Undefined => ConnectionType::Simple(Signal::Undefined),
+                match self.input[0].value {
+                    PinValue::Single(signal) => {
+                        self.output.value = match signal {
+                            Signal::On => PinValue::Single(Signal::Off),
+                            Signal::Off => PinValue::Single(Signal::On),
+                            Signal::Undefined => PinValue::Single(Signal::Undefined),
                         };
                     }
                     _ => {
@@ -171,45 +182,82 @@ impl LogicGate {
     
             LogicGates::Nand => {
                 if all_on {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 }
             }
     
             LogicGates::Nor => {
                 if all_off {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 }
             }
     
             LogicGates::Xor => {
                 if on_count % 2 == 1 {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 }
             }
     
             LogicGates::Xnor => {
                 if on_count % 2 == 0 {
-                    self.output.connection = ConnectionType::Simple(Signal::On);
+                    self.output.value = PinValue::Single(Signal::On);
                 } else if any_undefined {
-                    self.output.connection = ConnectionType::Simple(Signal::Undefined);
+                    self.output.value = PinValue::Single(Signal::Undefined);
                 } else {
-                    self.output.connection = ConnectionType::Simple(Signal::Off);
+                    self.output.value = PinValue::Single(Signal::Off);
                 }
             }
     
             _ => panic!("Gate type not handled"),
         }
     }
+
+}
+
+impl clone::Clone for LogicGate {
+    fn clone(&self) -> Self {
+        LogicGate {
+            input: self.input.clone(),
+            output: self.output.clone(),
+            num_input: self.num_input,
+            r#type: self.r#type.clone(),
+            position: self.position.clone(),
+        }
+    }
+    
+}
+
+impl PartialEq for LogicGate {
+    fn eq(&self, other: &Self) -> bool {
+        self.input == other.input &&
+        self.output == other.output &&
+        self.num_input == other.num_input &&
+        self.r#type == other.r#type &&
+        self.position == other.position 
+    }
+    
+}
+
+impl LogicElement for LogicGate {
+    fn get_pin_mut(&mut self, pin_index: usize) -> Option<&mut Pin> {
+            if pin_index < self.input.len() {
+                self.input.get_mut(pin_index)
+            } else if pin_index == self.input.len() {
+                Some(&mut self.output)
+            } else {
+                None
+            }
+        }
 }
