@@ -33,6 +33,15 @@ pub enum PinValue {
 pub struct Pin {
     pub value: PinValue,
     pub r#type: PinType,
+    pub cid: usize,
+    pub pid: usize,
+    pub ioc: usize,     //* The IOC (Inpu Output Control) parameter indicates what's the purpouse of the pin, 0 = output, 1 = input, 2.. = control pins
+}
+
+pub struct Connection {
+    pub from: Pin,
+    pub to: Pin,
+    pub validity: bool,
 }
 
 //TODO: Helper function to get / set the value of a pin
@@ -52,25 +61,6 @@ pub struct Pin {
     }
 }*/
 
-#[derive(Debug, Clone)]
-pub struct Bus_Pin {
-    pub value: Vec<Signal>,
-    pub r#type: PinType,
-}
-
-//* Helper function to get / set the value of a bus pin
-impl Bus_Pin {
-    pub fn get_value(&self) -> Vec<Signal> {
-        self.value.clone()
-    }
-
-    pub fn set_value(&self, value: Vec<Signal>) -> Bus_Pin {
-        Bus_Pin {
-            value,
-            r#type: self.r#type.clone(),
-        }
-    }
-}
 
 impl PartialEq for PinValue {
     fn eq(&self, other: &Self) -> bool {
@@ -84,16 +74,14 @@ impl PartialEq for PinValue {
 
 impl PartialEq for Pin {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.r#type == other.r#type
+        self.value == other.value && 
+        self.r#type == other.r#type && 
+        self.pid == other.pid &&
+        self.cid == other.cid &&
+        self.ioc == other.ioc
     } 
 }
 
-impl PartialEq for Bus_Pin {
-    fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.r#type == other.r#type
-    } 
-
-}
 
 impl PartialEq for PinType {
     fn eq(&self, other: &Self) -> bool {

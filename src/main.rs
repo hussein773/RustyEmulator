@@ -1,24 +1,27 @@
 mod logic_gates;
 mod structure;
+mod circuit;
 
-use std::collections::HashMap;
-
+use std::{collections::HashMap, path::Components};
 use structure::*;
 use logic_gates::*;
+use circuit::*;
+
 
 use ggegui::{egui, Gui};
 use ggez::event::{self, EventHandler};
-use ggez::graphics::{self, Color, DrawParam, Mesh, Rect, Text, Canvas, Drawable, draw, DrawMode, Image};
-use ggez::{Context, ContextBuilder, GameError, GameResult};
+use ggez::graphics::{DrawParam, Canvas, Image};
+use ggez::{Context, ContextBuilder, GameResult};
 
-
+/*
 struct State {
 	gui: Gui,
-    add_component: bool,
+    add_gates: bool,
 	selected_gate: Option<String>,
 	input_number: u32,
 	gate_image: Vec<Image>,
 	gate_paths: HashMap<String, String>,
+	grid_image: Image,
 }
 
 impl State {
@@ -33,13 +36,17 @@ impl State {
         gate_paths.insert("NOR Gate".to_string(), "/normal/input_2/nor.png".to_string());
         gate_paths.insert("XNOR Gate".to_string(), "/normal/input_2/xnor.png".to_string());
 
+		// The grid image
+		let canvas_grid = Image::from_path(ctx, "/utils/grid.png").unwrap();
+
 		Self { 
 			gui: Gui::new(ctx), 
-			add_component: false,
+			add_gates: false,
 			selected_gate: None,
 			input_number: 2,
 			gate_image: Vec::new(),
             gate_paths: gate_paths,
+			grid_image: canvas_grid,
 		}
 	}
 
@@ -67,7 +74,7 @@ impl EventHandler for State {
 
 			// Button to create components
 			if ui.button("Logic Gates").clicked() {
-                self.add_component = !self.add_component;
+                self.add_gates = !self.add_gates;
 			}
 
 			// Button for the constants
@@ -84,7 +91,7 @@ impl EventHandler for State {
 			}
 
 			// Window to choose the component
-			if self.add_component {
+			if self.add_gates {
 				egui::Window::new("Component Selector").show(&gui_ctx, |ui| {
 					// Available gates
 					let gates = vec!["AND Gate", "OR Gate", "NOT Gate", "XOR Gate", "NAND Gate", "NOR Gate", "XNOR Gate"];
@@ -116,12 +123,13 @@ impl EventHandler for State {
                             // Load the appropriate image for the selected gate
 							let selected_gate_clone = selected_gate.clone();
 							self.load_gate_image(ctx, &selected_gate_clone).expect("Failed to load gate image");
+							let gate = LogicGate::new_gate(0, 1, false, 1);
                         }
 					}
 
 					// Button to close the window
 					if ui.button("Close").clicked() {
-						self.add_component = false;
+						self.add_gates = false;
 					}
 						
 				});
@@ -132,8 +140,9 @@ impl EventHandler for State {
 	}
 
 	fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(217, 217, 217));
-
+		let mut canvas = Canvas::from_frame(ctx, None);
+		// Draw the grid
+		canvas.draw(&self.grid_image, DrawParam::default());
         // Draw all gate images by iterating over the `gate_images` vector
         for (i, image) in self.gate_image.iter().enumerate() {
             let draw_params = DrawParam::default()
@@ -141,15 +150,32 @@ impl EventHandler for State {
                 .scale(ggez::glam::Vec2::new(0.5, 0.5));   // Adjust the scale as needed
             canvas.draw(image, draw_params);
         }
-
         // Draw the GUI
         canvas.draw(&self.gui, DrawParam::default());
         canvas.finish(ctx)
 	}
 }
+*/
 
 fn main() {
+	/*
 	let (mut ctx, event_loop) = ContextBuilder::new("game_id", "author").build().unwrap();
 	let state = State::new(&mut ctx);
 	event::run(ctx, event_loop, state);
+	*/
+	
+	let mut not1 = LogicElements::Gates(LogicGate::new_gate(2, 1, false, 1));
+	let mut not2 = LogicElements::Gates(LogicGate::new_gate(2, 1, false, 1));
+	let mut not3 = LogicElements::Gates(LogicGate::new_gate(2, 1, false, 1));
+	not1.set_input(vec![Signal::On]);
+	not1.get_output();
+	let mut circ = Circuit::new();
+	circ.add_element(not1);
+	circ.add_element(not2);
+	circ.add_element(not3);
+	circ.connect(1, 0, 1, 2, 1, 1);
+	circ.connect(2, 0, 1, 3, 1, 1);
+	circ.simulate();
+	circ.display_outputs();
+	
 }

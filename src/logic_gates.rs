@@ -12,6 +12,7 @@ pub struct LogicGate {
     pub output: Pin,
     pub num_input: usize,
     pub r#type: LogicGates,
+    pub id: usize,
     pub position: ggez::glam::Vec2,  
 }
 
@@ -21,49 +22,71 @@ impl LogicGate {
 
         let gate = if !bus {
             // Create a simple logic gate
-            LogicGate{
-                //TODO: ignore the number of bits and create a simple gate
-                //...
-
-                // As many inputs vec elements as inputs
-                input: vec![Pin{value: PinValue::Single(Signal::Undefined), r#type: PinType::NotSource}; num_inputs],
-                output: Pin {value: PinValue::Single(Signal::Undefined), r#type: PinType::Source},
+            LogicGate {
+                input: (0..num_inputs)
+                    .map(|i| Pin {
+                        value: PinValue::Single(Signal::Undefined),
+                        r#type: PinType::NotSource,
+                        cid: 0,
+                        pid: i + 1, // Assign unique pid starting from 1
+                        ioc: 1,
+                    })
+                    .collect(),
+                output: Pin {
+                    value: PinValue::Single(Signal::Undefined),
+                    r#type: PinType::Source,
+                    cid: 0,
+                    pid: 1,
+                    ioc: 0,
+                },
                 num_input: num_inputs,
                 r#type: match gate_type {
                     0 => LogicGates::And,
                     1 => LogicGates::Or,
-                    2 => LogicGates::Not, 
+                    2 => LogicGates::Not,
                     3 => LogicGates::Nand,
                     4 => LogicGates::Nor,
                     5 => LogicGates::Xor,
                     6 => LogicGates::Xnor,
                     _ => panic!("Invalid gate"),
                 },
-                position: Vec2::new(0.0, 0.0), 
+                id: 0,
+                position: Vec2::new(0.0, 0.0),
             }
             
         } else {
             // Create a bus logic gate
-            LogicGate{
-                // Check if number of bits are %2 
-                //...
-                
-                // Inner vec elements represent the bit numbers, while outer
-                // vec elements represent the number of bus
-                input: vec![Pin{value:PinValue::Multiple(vec![Signal::Undefined; bits]), r#type: PinType::NotSource}],
-                output: Pin {value:PinValue::Multiple(vec![Signal::Undefined; bits]), r#type:PinType::Source},
+            LogicGate {
+                // Dynamically create `input` Pins with unique `pid` values
+                input: (0..num_inputs)
+                    .map(|i| Pin {
+                        value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Each pin has `bits` signals
+                        r#type: PinType::NotSource,
+                        cid: 0,
+                        pid: i + 1, // Assign unique pid for each pin
+                        ioc: 1,
+                    })
+                    .collect(),
+                output: Pin {
+                    value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Output also represents multiple bits
+                    r#type: PinType::Source,
+                    cid: 0,
+                    pid: 1,
+                    ioc: 0,
+                },
                 num_input: num_inputs,
                 r#type: match gate_type {
                     0 => LogicGates::And,
                     1 => LogicGates::Or,
-                    2 => LogicGates::Not, 
+                    2 => LogicGates::Not,
                     3 => LogicGates::Nand,
                     4 => LogicGates::Nor,
                     5 => LogicGates::Xor,
                     6 => LogicGates::Xnor,
-                    _ => panic!("Input non valido per la porta logica"),
+                    _ => panic!("Invalid input for logic gate"),
                 },
-                position: Vec2::new(0.0, 0.0), 
+                id: 0,
+                position: Vec2::new(0.0, 0.0),
             }
         };
         gate
@@ -224,6 +247,36 @@ impl LogicGate {
         }
     }
 
+    pub fn set_gate_id(&mut self, id: usize) {
+        self.id = id;
+    
+        // Assign the cid of all input pins to match `self.id`
+        for pin in &mut self.input {
+            pin.cid = self.id;
+        }
+    
+        // Assign the `cid` of the `output` pin to match `self.id`
+        self.output.cid = self.id;
+    }
+
+    pub fn get_pin(&mut self, ioc: usize, pid: usize) -> &mut Pin {
+        match ioc {
+            0 => {
+                // For output pins (ioc == 0), the `id` should be checked against the `output` pin's `pid`.
+                if self.output.pid == pid {
+                    &mut self.output 
+                } else {
+                    panic!("Output pin with id {} not found", pid);
+                }
+            }
+            1 => {
+                // For input pins (ioc == 1), search the `input` vector for a pin with the matching `pid`.
+                self.input.iter_mut().find(|pin| pin.pid == pid)
+                    .expect(&format!("Input pin with id {} not found", pid))
+            }
+            _ => panic!("Invalid ioc value: {}. Only 0 (output) and 1 (input) are valid.", ioc),
+        }
+    }
 }
 
 impl clone::Clone for LogicGate {
@@ -233,6 +286,7 @@ impl clone::Clone for LogicGate {
             output: self.output.clone(),
             num_input: self.num_input,
             r#type: self.r#type.clone(),
+            id: self.id.clone(),
             position: self.position.clone(),
         }
     }
@@ -248,16 +302,4 @@ impl PartialEq for LogicGate {
         self.position == other.position 
     }
     
-}
-
-impl LogicElement for LogicGate {
-    fn get_pin_mut(&mut self, pin_index: usize) -> Option<&mut Pin> {
-            if pin_index < self.input.len() {
-                self.input.get_mut(pin_index)
-            } else if pin_index == self.input.len() {
-                Some(&mut self.output)
-            } else {
-                None
-            }
-        }
 }
