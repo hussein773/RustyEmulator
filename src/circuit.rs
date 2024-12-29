@@ -1,12 +1,11 @@
-use std::path::Component;
-use std::pin;
 use crate::logic_gates::*;
+use crate::source::*;
 use crate::structure::*;
 
 #[derive(Debug)]
 pub enum LogicElements {
     Gates(LogicGate),
-    Source,
+    Source(Source),
     Clock,
     Adders,
     Multiplexers,
@@ -22,16 +21,6 @@ impl LogicElements {
             // Handle the case when it's a single input gate
             LogicElements::Gates(logic_gate) => {
                 logic_gate.set_input(signal);  // Call the method for a single input gate
-            }
-
-            // Handle the case when it's a Source element
-            LogicElements::Source => {
-                todo!()
-            }
-
-            // Handle the case when it's a Clock element
-            LogicElements::Clock => {
-                todo!()
             }
 
             // Handle cases where the logic element is a flip flop or latch register
@@ -59,6 +48,7 @@ impl LogicElements {
     pub fn get_pin(&mut self, ioc:usize, pid:usize) -> &mut Pin{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.get_pin(ioc, pid),
+            LogicElements::Source(source) => source.get_pin(ioc, pid),
             _ => todo!("rest of the componens"),
         }
     }
@@ -67,8 +57,8 @@ impl LogicElements {
 impl Clone for LogicElements {
     fn clone(&self) -> Self {
         match self {
-            LogicElements::Gates(gate) => LogicElements::Gates(gate.clone()),
-            LogicElements::Source => LogicElements::Source,
+            LogicElements::Gates(logic_gate) => LogicElements::Gates(logic_gate.clone()),
+            LogicElements::Source(source) => LogicElements::Source(source.clone()),
             LogicElements::Clock => LogicElements::Clock,
             LogicElements::Adders => LogicElements::Adders,
             LogicElements::Multiplexers => LogicElements::Multiplexers,
@@ -130,6 +120,7 @@ impl Circuit {
         // Set the id of the component
         match &mut component {
             LogicElements::Gates(logic_gate) => logic_gate.set_gate_id(self.component_id),
+            LogicElements::Source(source) => source.set_id(self.component_id),
             //TODO ADD THE REST OF THE COMPONENTS
             _ => todo!(),
         }
@@ -161,7 +152,7 @@ impl Circuit {
     
             if let Some(&(cid, ioc, pid)) = source {
                 // Access the source pin using the get_pin method
-                let source_value = self.components[cid-1].get_pin(ioc, pid).value.clone(); // Clone the value
+                let source_value = self.components[cid-1].get_pin(ioc, pid).value.clone();
                 
                 /*println!(
                     "Propagating signal from source pin: cid = {}, ioc = {}, pid = {}, value = {:?}",
@@ -192,9 +183,19 @@ impl Circuit {
                         .value = PinValue::Single(Signal::Undefined);
                 }
             }
-            // After propagating the signals get the output of each component
-            for component in &mut self.components{
-                component.get_output();
+            // After propagating the signals get the output of each component if the componenet
+            // needs to evaluate the output
+            for component in &mut self.components {
+                match component {
+                    LogicElements::Source(_) => {
+                        // Doesn't need to evaluate the inputs (no input component)
+                        continue;
+                    }
+                    _ => {
+                        // Call get_output for all other components
+                        component.get_output();
+                    }
+                }
             }
         }
     }

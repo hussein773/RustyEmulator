@@ -1,8 +1,5 @@
 use std::clone;
-
 use crate::structure::*;
-use crate::circuit::*;
-use ggez::{graphics::{Canvas, DrawParam, Image}, Context, GameResult};
 use ggez::glam::Vec2;
 
 // Logic gate structure
@@ -26,7 +23,6 @@ impl LogicGate {
                 input: (0..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Single(Signal::Undefined),
-                        r#type: PinType::NotSource,
                         cid: 0,
                         pid: i + 1, // Assign unique pid starting from 1
                         ioc: 1,
@@ -34,7 +30,6 @@ impl LogicGate {
                     .collect(),
                 output: Pin {
                     value: PinValue::Single(Signal::Undefined),
-                    r#type: PinType::Source,
                     cid: 0,
                     pid: 1,
                     ioc: 0,
@@ -61,7 +56,6 @@ impl LogicGate {
                 input: (0..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Each pin has `bits` signals
-                        r#type: PinType::NotSource,
                         cid: 0,
                         pid: i + 1, // Assign unique pid for each pin
                         ioc: 1,
@@ -69,7 +63,6 @@ impl LogicGate {
                     .collect(),
                 output: Pin {
                     value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Output also represents multiple bits
-                    r#type: PinType::Source,
                     cid: 0,
                     pid: 1,
                     ioc: 0,
