@@ -15,7 +15,7 @@ use ggez::event::{self, EventHandler};
 use ggez::graphics::{DrawParam, Canvas, Image};
 use ggez::{Context, ContextBuilder, GameResult};
 
-/*
+/* 
 struct State {
 	gui: Gui,
     add_gates: bool,
@@ -160,29 +160,20 @@ impl EventHandler for State {
 */
 
 fn main() {
-	/*
+	/* 
 	let (mut ctx, event_loop) = ContextBuilder::new("game_id", "author").build().unwrap();
 	let state = State::new(&mut ctx);
 	event::run(ctx, event_loop, state);
 	*/
-	
 	let mut and = LogicElements::Gates(LogicGate::new_gate(0, 2, false, 1));
-	let mut or1 = LogicElements::Gates(LogicGate::new_gate(1, 2, false, 1));
-	let mut or2 = LogicElements::Gates(LogicGate::new_gate(1, 2, false, 1));
-	let a = LogicElements::Source(Source::new(1));
-	let b = LogicElements::Source(Source::new(0));
+	let s1 = LogicElements::Source(Source::new(1));
+	let s2 = LogicElements::Source(Source::new(0));
 	let mut circ = Circuit::new();
-	circ.add_element(and); // element 1
-	circ.add_element(or1); // 2
-	circ.add_element(or2); // 3
-	circ.add_element(a);	// 4
-	circ.add_element(b);  // 5
-	circ.connect(4, 0, 1, 1, 1, 1);
-	circ.connect(5, 0, 1, 1, 1, 2);
-	circ.connect(1, 1, 1, 2, 1, 1);
-	circ.connect(1, 1, 2, 2, 1, 2);
-	circ.connect(1, 0, 1, 3, 1, 1);
-	circ.connect(2, 0, 1, 3, 1, 2);
+	circ.add_element(and);
+	circ.add_element(s1);
+	circ.add_element(s2);
+	circ.connect(2, 0, 1, 1, 1, 1);
+	circ.connect(3, 0, 1, 1, 1, 2);
 	circ.simulate();
 	circ.display_outputs();
 }

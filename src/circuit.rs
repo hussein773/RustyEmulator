@@ -73,7 +73,7 @@ impl Clone for LogicElements {
 
 pub struct Circuit {
     components: Vec<LogicElements>,
-    connections: Vec<Vec<(usize,usize,usize)>>,
+    wires: Vec<Wire>,
     component_id: usize
 }
 impl Circuit {
@@ -81,37 +81,72 @@ impl Circuit {
     pub fn new() -> Self {
         Self {
             components: Vec::new(),
-            connections: Vec::new(),
+            wires: Vec::new(),
             component_id: 1,
         }
     }
     
 
     //* Function to connect pins of different components together
-    pub fn connect(&mut self, from_cid: usize, from_ioc: usize, from_pid: usize, to_cid: usize, to_ioc: usize, to_pid: usize) {
+    pub fn connect(
+        &mut self,
+        from_cid: usize,
+        from_ioc: usize,
+        from_pid: usize,
+        to_cid: usize,
+        to_ioc: usize,
+        to_pid: usize,
+    ) {
         // Create tuples for both pins
         let from_pin_id = (from_cid, from_ioc, from_pid);
         let to_pin_id = (to_cid, to_ioc, to_pid);
-
-        // Try to merge the connections
-        let mut merged = false;
-
-        for connection in &mut self.connections {
-            // If either pin is already part of the connection, merge the connection
-            if connection.iter().any(|&pin_id| pin_id == from_pin_id) {
-                connection.push(to_pin_id);
-                merged = true;
-                break;
-            } else if connection.iter().any(|&pin_id| pin_id == to_pin_id) {
-                connection.push(from_pin_id);
-                merged = true;
-                break;
+    
+        let mut from_wire_index = None;
+        let mut to_wire_index = None;
+    
+        // Find the wires that contain the from_pin and to_pin
+        for (index, wire) in self.wires.iter().enumerate() {
+            if wire.pins.contains(&from_pin_id) {
+                from_wire_index = Some(index);
+            }
+            if wire.pins.contains(&to_pin_id) {
+                to_wire_index = Some(index);
             }
         }
-
-        // If no merge happened, create a new connection with both pins
-        if !merged {
-            self.connections.push(vec![from_pin_id, to_pin_id]);
+    
+        match (from_wire_index, to_wire_index) {
+            // Differen indexes = diffeent wire connections => merge the wire connections
+            (Some(from_index), Some(to_index)) if from_index != to_index => {
+                // Merge the two wires into one
+                let mut from_wire = self.wires.remove(from_index);
+                let to_wire = self.wires.remove(to_index - (from_index < to_index) as usize);
+    
+                // Combine pins and segments
+                from_wire.pins.extend(to_wire.pins);
+                from_wire.pins.push(from_pin_id);
+                from_wire.pins.push(to_pin_id);
+                from_wire.pins.dedup();
+    
+                from_wire.segments.extend(to_wire.segments);
+    
+                self.wires.push(from_wire);
+            }
+            (Some(wire_index), None) | (None, Some(wire_index)) => {
+                // Case where only one pin is found in a wire connection
+                // Add the pin outside of the wire connection into the connection
+                let wire = &mut self.wires[wire_index];
+                wire.pins.push(from_pin_id);
+                wire.pins.push(to_pin_id);
+                wire.pins.dedup();
+            }
+            (None, None) => {
+                // Create a new wire with both pins
+                self.wires.push(Wire {
+                    pins: vec![from_pin_id, to_pin_id],
+                    segments: Vec::new(),
+                });
+            }
+            _ => {}
         }
     }
 
@@ -136,13 +171,13 @@ impl Circuit {
 
     pub fn simulate(&mut self) {
         // Check if all the connections are correct (contain a single source pin)
-        for (index, connection) in self.connections.iter().enumerate() {
+        for (index, wire) in self.wires.iter().enumerate() {
             // Buffer to hold the source pins
-            let mut source_pins: Vec<&(usize, usize, usize)> = connection.iter().filter(|&&(cid, ioc, pid)| ioc == 0).collect();
+            let mut source_pins: Vec<&(usize, usize, usize)> = wire.pins.iter().filter(|&&(_, ioc, _)| ioc == 0).collect();
             if source_pins.len() > 1 {
                 panic!(
                     "Short circuit detected in connection {}: {:?}. More than one source pin (ioc = 0) found.",
-                    index, connection
+                    index, wire
                 );
             }
     
@@ -160,7 +195,7 @@ impl Circuit {
                 );*/
     
                 // Propagate the source signal to all other pins in the connection
-                for &(target_cid, target_ioc, target_pid) in connection {
+                for &(target_cid, target_ioc, target_pid) in &wire.pins {
                     if target_cid == cid && target_ioc == ioc && target_pid == pid {
                         // Skip the source pin itself
                         continue;
@@ -175,9 +210,9 @@ impl Circuit {
                 // If no source pin exists then set all pins to undefined
                 println!(
                     "No source pin found in connection {}: {:?}. Setting all pins to undefined.",
-                    index, connection
+                    index, wire
                 );
-                for &(target_cid, target_ioc, target_pid) in connection {
+                for &(target_cid, target_ioc, target_pid) in &wire.pins {
                     self.components[target_cid-1]
                         .get_pin(target_ioc, target_pid)
                         .value = PinValue::Single(Signal::Undefined);

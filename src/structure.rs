@@ -1,4 +1,5 @@
 // structure.rs
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Signal {
     Off, 
@@ -29,6 +30,27 @@ pub struct Pin {
     pub cid: usize,
     pub pid: usize,
     pub ioc: usize,     //* The IOC (Input Output Control) parameter indicates what's the purpouse of the pin, 0 = output, 1 = input, 2.. = control pins
+}
+
+#[derive(Debug, Clone)]
+pub struct WireSegment {
+    pub start: (i32, i32), // Start coordinate of the segment
+    pub end: (i32, i32),   // End coordinate of the segment
+}
+
+#[derive(Debug, Clone)]
+pub struct Wire {
+    pub pins: Vec<(usize, usize, usize)>, // Logical connections (component ID, I/O category, pin ID)
+    pub segments: Vec<WireSegment>,      // Physical segments of the wire
+}
+impl Wire {
+    pub fn iter(&self) -> std::slice::Iter<'_, (usize, usize, usize)> {
+        self.pins.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, (usize, usize, usize)> {
+        self.pins.iter_mut()
+    }
 }
 
 
