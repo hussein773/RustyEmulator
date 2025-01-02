@@ -1,6 +1,6 @@
 use std::clone;
 use crate::structure::*;
-use ggez::glam::Vec2;
+use ggez::{graphics::{Image, Rect}, mint::Point2};
 
 // Logic gate structure
 #[derive(Debug)]
@@ -10,7 +10,9 @@ pub struct LogicGate {
     pub num_input: usize,
     pub r#type: LogicGates,
     pub id: usize,
-    pub position: ggez::glam::Vec2,  
+    pub position: Point2<f32>, 
+    pub image: Option<Image>, 
+    pub hitbox: Rect,
 }
 
 impl LogicGate {
@@ -46,7 +48,9 @@ impl LogicGate {
                     _ => panic!("Invalid gate"),
                 },
                 id: 0,
-                position: Vec2::new(0.0, 0.0),
+                position: Point2 { x: 0.0, y: 0.0 },
+                image: None,
+                hitbox: Rect { x: 0.0, y: 0.0, w: 180.0, h: 150.0 }
             }
             
         } else {
@@ -79,7 +83,9 @@ impl LogicGate {
                     _ => panic!("Invalid input for logic gate"),
                 },
                 id: 0,
-                position: Vec2::new(0.0, 0.0),
+                position: Point2 { x: 0.0, y: 0.0 },
+                image: None,
+                hitbox: Rect { x: 0.0, y: 0.0, w: 180.0, h: 150.0 }
             }
         };
         gate
@@ -149,7 +155,7 @@ impl LogicGate {
                     }
                 }
                 _ => {
-                    panic!("Unexpected connection type, expected Simple.");
+                    todo!()
                 }
             }
         }
@@ -281,6 +287,8 @@ impl clone::Clone for LogicGate {
             r#type: self.r#type.clone(),
             id: self.id.clone(),
             position: self.position.clone(),
+            image: self.image.clone(),
+            hitbox: self.hitbox.clone(),
         }
     }
     

@@ -52,6 +52,11 @@ impl LogicElements {
             _ => todo!("rest of the componens"),
         }
     }
+
+    pub fn update_postion(&mut self, cid: usize){
+        todo!()
+    }
+
 }
 
 impl Clone for LogicElements {

@@ -1,13 +1,16 @@
 use std::clone;
 use crate::structure::*;
 use ggegui::{egui::output, Input};
-use ggez::glam::{vec2, Vec2};
+use ggez::mint::Point2;
+use ggez::graphics::{Image, Rect};
 
 #[derive(Debug, Clone)]
 pub struct Source {
     id: usize,
     output: Pin,
-    pub position: ggez::glam::Vec2,   
+    pub position: Point2<f32>,
+    image: Option<Image>, 
+    hitbox: Rect  
 }
 impl Source {
     pub fn new(value: usize) -> Self{
@@ -21,7 +24,9 @@ impl Source {
                 },
                 cid: 0, pid: 1, ioc: 0 
                 },
-            position: vec2(0.0, 0.0),
+            position: Point2 { x: 0.0, y: 0.0 },
+            image: None,
+            hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 }
         }
     }
 

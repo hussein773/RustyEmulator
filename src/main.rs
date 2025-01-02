@@ -3,7 +3,9 @@ mod logic_gates;
 mod source;
 mod structure;
 
-use std::{collections::HashMap, path::Components};
+use std::collections::HashMap;
+use ggegui::egui::{vec2, Vec2};
+use ggez::mint::Point2;
 use source::Source;
 use structure::*;
 use logic_gates::*;
@@ -12,31 +14,34 @@ use circuit::*;
 
 use ggegui::{egui, Gui};
 use ggez::event::{self, EventHandler};
-use ggez::graphics::{DrawParam, Canvas, Image};
-use ggez::{Context, ContextBuilder, GameResult};
+use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Image, Mesh, Rect};
+use ggez::{Context, ContextBuilder, GameResult, input};
 
-/* 
+ 
 struct State {
 	gui: Gui,
     add_gates: bool,
 	selected_gate: Option<String>,
 	input_number: u32,
-	gate_image: Vec<Image>,
-	gate_paths: HashMap<String, String>,
+	logicelement_image: Vec<Image>,
+	images_paths: HashMap<String, String>,
+	logicelement_position: Vec<Point2<f32>>,
+	logicelement_hitbox: Vec<Rect>,
+	dragging_index: Option<usize>,
 	grid_image: Image,
 }
 
 impl State {
 	pub fn new(ctx: &mut Context) -> Self {
 
-		let mut gate_paths = HashMap::new();
-        gate_paths.insert("AND Gate".to_string(), "/normal/input_2/and.png".to_string());
-        gate_paths.insert("OR Gate".to_string(), "/normal/input_2/or.png".to_string());
-        gate_paths.insert("NOT Gate".to_string(), "/normal/input_2/not.png".to_string());
-        gate_paths.insert("XOR Gate".to_string(), "/normal/input_2/xor.png".to_string());
-        gate_paths.insert("NAND Gate".to_string(), "/normal/input_2/nand.png".to_string());
-        gate_paths.insert("NOR Gate".to_string(), "/normal/input_2/nor.png".to_string());
-        gate_paths.insert("XNOR Gate".to_string(), "/normal/input_2/xnor.png".to_string());
+		let mut path = HashMap::new();
+        path.insert("AND Gate".to_string(), "/normal/input_2/source_low1.png".to_string());
+        path.insert("OR Gate".to_string(), "/normal/input_2/or.png".to_string());
+        path.insert("NOT Gate".to_string(), "/normal/input_2/not.png".to_string());
+        path.insert("XOR Gate".to_string(), "/normal/input_2/xor.png".to_string());
+        path.insert("NAND Gate".to_string(), "/normal/input_2/nand.png".to_string());
+        path.insert("NOR Gate".to_string(), "/normal/input_2/nor.png".to_string());
+        path.insert("XNOR Gate".to_string(), "/normal/input_2/xnor.png".to_string());
 
 		// The grid image
 		let canvas_grid = Image::from_path(ctx, "/utils/grid.png").unwrap();
@@ -46,24 +51,39 @@ impl State {
 			add_gates: false,
 			selected_gate: None,
 			input_number: 2,
-			gate_image: Vec::new(),
-            gate_paths: gate_paths,
+			logicelement_image: Vec::new(),
+            images_paths: path,
+			logicelement_position: Vec::new(),
+			logicelement_hitbox: Vec::new(),
+			dragging_index: None,
 			grid_image: canvas_grid,
 		}
 	}
 
-	// The function to load the gate image
 	fn load_gate_image(&mut self, ctx: &mut Context, gate: &str) -> GameResult<()> {
+		// Get the path of the image for the selected gate
+		if let Some(image_path) = self.images_paths.get(gate) {
+			// Load the new image and set it
+			let image = Image::from_path(ctx, image_path)?;
+			self.logicelement_image.push(image);
+	
+			// Set a default position for the new image
+			let position = Point2 { x: 100.0, y: 100.0 };
+			self.logicelement_position.push(position);
+	
+			// Calculate and store the hitbox
+			let rect = ggez::graphics::Rect::new(
+				position.x,
+				position.y,
+				180.0 * 0.5, // Adjust for scaling if necessary
+				150.0 as f32 * 0.5, // Adjust for scaling if necessary
+			);
+			self.logicelement_hitbox.push(rect);
+		}
+	
+		Ok(())
+	}
 
-        // Get the path of the selected gate image
-        if let Some(image_path) = self.gate_paths.get(gate) {
-            // Load the new image and set it
-            let image = Image::from_path(ctx, image_path)?;
-            self.gate_image.push(image);
-        }
-
-        Ok(())
-    }
 }
 
 impl EventHandler for State {
@@ -119,7 +139,7 @@ impl EventHandler for State {
 						ui.label(format!("Number of Inputs: {}", self.input_number));
 					}
 
-					// Button 
+					// Button to generate the gate
 					if ui.button("Generate").clicked() {
                         if let Some(selected_gate) = &self.selected_gate {
                             // Load the appropriate image for the selected gate
@@ -136,6 +156,29 @@ impl EventHandler for State {
 						
 				});
 			}
+			
+			// Drag the component
+    		if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) {
+        		let mouse_pos = ctx.mouse.position();
+
+        		for (i, hitbox) in self.logicelement_hitbox.iter().enumerate() {
+            		if hitbox.contains(mouse_pos) {
+                		self.dragging_index = Some(i);
+                		break;
+            		}
+        		}
+    		}
+
+    		if let Some(index) = self.dragging_index {
+        		let mouse_pos = ctx.mouse.position();
+        		self.logicelement_position[index] = mouse_pos;
+        		self.logicelement_hitbox[index].x = mouse_pos.x;
+        		self.logicelement_hitbox[index].y = mouse_pos.y;
+    		}
+
+    		if ctx.mouse.button_just_released(input::mouse::MouseButton::Left) {
+        		self.dragging_index = None;
+    		}
 		});
 		self.gui.update(ctx);
 		Ok(())
@@ -146,26 +189,45 @@ impl EventHandler for State {
 		// Draw the grid
 		canvas.draw(&self.grid_image, DrawParam::default());
         // Draw all gate images by iterating over the `gate_images` vector
-        for (i, image) in self.gate_image.iter().enumerate() {
+        for (i, image) in self.logicelement_image.iter().enumerate() {
+			let position = self.logicelement_position[i];
             let draw_params = DrawParam::default()
-                .dest(ggez::glam::Vec2::new(100.0 * (i as f32), 100.0)) // Position the images with some spacing
+                .dest(position) // Position the images with some spacing
                 .scale(ggez::glam::Vec2::new(0.5, 0.5));   // Adjust the scale as needed
             canvas.draw(image, draw_params);
         }
+		
+		///////////////////////////////////////////////////////////
+		// HITBOXES
+		///////////////////////////////////////////////////////////
+		for hitbox in &self.logicelement_hitbox {
+			let rect_mesh = Mesh::new_rectangle(
+				ctx,
+				DrawMode::stroke(2.0), // Stroke with 2.0 thickness
+				*hitbox,
+				Color::RED,           // Use red for visibility
+			)?;
+			canvas.draw(&rect_mesh, DrawParam::default());
+		}
+		///////////////////////////////////////////////////////////
+		
         // Draw the GUI
         canvas.draw(&self.gui, DrawParam::default());
         canvas.finish(ctx)
 	}
 }
-*/
+
 
 fn main() {
-	/* 
+	
 	let (mut ctx, event_loop) = ContextBuilder::new("game_id", "author").build().unwrap();
 	let state = State::new(&mut ctx);
 	event::run(ctx, event_loop, state);
-	*/
-	let mut and = LogicElements::Gates(LogicGate::new_gate(0, 2, false, 1));
+	
+
+}
+	// Example of a circuit
+	/*let mut and = LogicElements::Gates(LogicGate::new_gate(0, 2, false, 1));
 	let s1 = LogicElements::Source(Source::new(1));
 	let s2 = LogicElements::Source(Source::new(0));
 	let mut circ = Circuit::new();
@@ -176,4 +238,4 @@ fn main() {
 	circ.connect(3, 0, 1, 1, 1, 2);
 	circ.simulate();
 	circ.display_outputs();
-}
+	*/
