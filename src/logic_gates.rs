@@ -1,6 +1,6 @@
-use std::clone;
+use std::{clone, path::absolute};
 use crate::structure::*;
-use ggez::{graphics::{Image, Rect}, mint::Point2};
+use ggez::{graphics::{Image, Rect}, mint::Point2, Context, GameResult};
 
 // Logic gate structure
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 180.0, h: 150.0 }
+                hitbox: Rect { x: 0.0, y: 0.0, w: 90.0, h: 70.0 }
             }
             
         } else {
@@ -85,7 +85,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 180.0, h: 150.0 }
+                hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 }
             }
         };
         gate
@@ -276,7 +276,65 @@ impl LogicGate {
             _ => panic!("Invalid ioc value: {}. Only 0 (output) and 1 (input) are valid.", ioc),
         }
     }
+
+    pub fn load_gate_image(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let image_path = match self.r#type {
+            LogicGates::And => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/and.png",
+                PinValue::Multiple(_) => "/path/to/and_multiple.png",
+            },
+            LogicGates::Or => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/or.png",
+                PinValue::Multiple(_) => "/path/to/or_multiple.png",
+            },
+            LogicGates::Not => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/not.png",
+                PinValue::Multiple(_) => "/path/to/not_multiple.png",
+            },
+            LogicGates::Nand => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/nand.png",
+                PinValue::Multiple(_) => "/path/to/nand_multiple.png",
+            },
+            LogicGates::Nor => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/nor.png",
+                PinValue::Multiple(_) => "/path/to/nor_multiple.png",
+            },
+            LogicGates::Xor => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/xor.png",
+                PinValue::Multiple(_) => "/path/to/xor_multiple.png",
+            },
+            LogicGates::Xnor => match self.output.value {
+                PinValue::Single(_) => "/gates/normal/input2/xnor.png",
+                PinValue::Multiple(_) => "/path/to/xnor_multiple.png",
+            },
+        };
+
+        // Load the gate image
+        let image = Image::from_path(ctx, image_path)?;
+        self.image = Some(image);
+
+        Ok(())
+    }
+
+    pub fn get_gate_hitbox(&self) -> Rect{
+        self.hitbox
+    }
+
+    pub fn update_gate_position(&mut self, position: Point2<f32>){
+        self.position = Point2{x: position.x, y: position.y};
+        self.hitbox.x = position.x;
+        self.hitbox.y = position.y;
+    }
+
+    pub fn get_gate_image(&self) -> Option<Image>{
+        self.image.clone()
+    }
+
+    pub fn get_gate_position(&self) -> Point2<f32>{
+        self.position
+    }
 }
+
 
 impl clone::Clone for LogicGate {
     fn clone(&self) -> Self {

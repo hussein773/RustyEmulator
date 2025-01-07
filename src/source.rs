@@ -3,6 +3,7 @@ use crate::structure::*;
 use ggegui::{egui::output, Input};
 use ggez::mint::Point2;
 use ggez::graphics::{Image, Rect};
+use ggez::{Context, GameResult};
 
 #[derive(Debug, Clone)]
 pub struct Source {
@@ -49,5 +50,38 @@ impl Source {
     
         // Assign the `cid` of the `output` pin to match `self.id`
         self.output.cid = self.id;
+    }
+
+    pub fn load_source_image(&mut self, ctx: &mut Context) -> GameResult<()> {
+        match self.output.value {
+            PinValue::Single(signal) => {
+                let path = match signal {
+                    Signal::On => "/sources/normal/source_high.png",
+                    Signal::Off | Signal::Undefined => "/sources/normal/source_low.png",
+                };
+                let image = Image::from_path(ctx, path)?; 
+                self.image = Some(image);
+            }
+            _ => panic!("Nomral source can't generate a bus output"),
+        }
+        Ok(())
+    }
+
+    pub fn get_source_hitbox(&self) -> Rect {
+        self.hitbox
+    }
+
+    pub fn update_source_position(&mut self, position: Point2<f32>){
+        self.position = position;
+        self.hitbox.x = position.x;
+        self.hitbox.y = position.y;
+    }
+
+    pub fn get_source_image(&self) -> Option<Image>{
+        self.image.clone()
+    }
+
+    pub fn get_source_position(&self) -> Point2<f32>{
+        self.position
     }
 }

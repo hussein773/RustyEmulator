@@ -1,3 +1,9 @@
+use ggez::graphics::Image;
+use ggez::mint::Point2;
+use ggez::{Context, graphics::Rect};
+use ggez::GameResult;
+
+use crate::logic_gates;
 use crate::logic_gates::*;
 use crate::source::*;
 use crate::structure::*;
@@ -53,8 +59,44 @@ impl LogicElements {
         }
     }
 
-    pub fn update_postion(&mut self, cid: usize){
-        todo!()
+    pub fn load_image(&mut self, ctx: &mut Context) -> GameResult<()>{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.load_gate_image(ctx),
+            LogicElements::Source(source) => source.load_source_image(ctx),
+            _ => todo!(),
+        }
+    }
+
+    pub fn get_hitbox(&self) -> Rect{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.get_gate_hitbox(),
+            LogicElements::Source(source) => source.get_source_hitbox(),
+            _ => todo!()
+        }
+    }
+
+    pub fn update_postion(&mut self, c_position:Point2<f32>){
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.update_gate_position(c_position),
+            LogicElements::Source(source) => source.update_source_position(c_position),
+            _ => todo!(),
+        }
+    }
+
+    pub fn get_image(&self) -> Option<Image>{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.get_gate_image(),
+            LogicElements::Source(source) => source.get_source_image(),
+            _ => todo!(),
+        }
+    }
+
+    pub fn get_position(&self) -> Point2<f32>{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.get_gate_position(),
+            LogicElements::Source(source) => source.get_source_position(),
+            _ => todo!(),
+        }
     }
 
 }
@@ -77,9 +119,9 @@ impl Clone for LogicElements {
 
 
 pub struct Circuit {
-    components: Vec<LogicElements>,
-    wires: Vec<Wire>,
-    component_id: usize
+    pub components: Vec<LogicElements>,
+    pub wires: Vec<Wire>,
+    pub component_id: usize
 }
 impl Circuit {
     // Create a new circuit
