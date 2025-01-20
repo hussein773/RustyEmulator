@@ -1,5 +1,7 @@
 // structure.rs
 
+use ggez::{graphics::Rect, mint::Point2};
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Signal {
     Off, 
@@ -30,18 +32,22 @@ pub struct Pin {
     pub cid: usize,
     pub pid: usize,
     pub ioc: usize,     //* The IOC (Input Output Control) parameter indicates what's the purpouse of the pin, 0 = output, 1 = input, 2.. = control pins
+    pub hitbox: Rect,
+    //TODO: instead of 3 separate parameters unite them in a single tuple
+    //pub r#type: (usize, usize, usize),  
 }
 
 #[derive(Debug, Clone)]
 pub struct WireSegment {
-    pub start: (i32, i32), // Start coordinate of the segment
-    pub end: (i32, i32),   // End coordinate of the segment
+    pub start: Point2<f32>, // Start coordinates of the segment
+    pub end: Point2<f32>,   // End coordinates of the segment
+    pub hitbox: Rect,       // Rect for the hitbox
 }
 
 #[derive(Debug, Clone)]
 pub struct Wire {
     pub pins: Vec<(usize, usize, usize)>, // Logical connections (component ID, I/O category, pin ID)
-    pub segments: Vec<WireSegment>,      // Physical segments of the wire
+    pub segments: Vec<WireSegment>,       // The segments of the wire
 }
 impl Wire {
     pub fn iter(&self) -> std::slice::Iter<'_, (usize, usize, usize)> {

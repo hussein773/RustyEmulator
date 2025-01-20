@@ -3,19 +3,21 @@ mod logic_gates;
 mod source;
 mod structure;
 
+use std::vec;
 use source::Source;
 use structure::*;
 use logic_gates::*;
 use circuit::*;
 
-
+use ggegui::egui::{vec2, Align, Layout, Vec2};
 use ggegui::{egui, Gui};
 use ggez::event::{self, EventHandler};
-use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Drawable, Image, Mesh};
+use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Image, Mesh, Rect};
 use ggez::{Context, ContextBuilder, GameResult, input};
 use ggez::mint::Point2;
 
  
+const UI_BUTTON_SIZE: Vec2 = vec2(150.0, 30.0);
 struct State {
 	gui: Gui,
 	circuit: Circuit,
@@ -26,7 +28,7 @@ struct State {
 	dragging_index: Option<usize>,
 	drag_offset: Option<Point2<f32>>,
 	grid_image: Image,
-	grid_offset: Point2<f32>,
+	wire_start: Option<Point2<f32>>
 }
 
 impl State {
@@ -37,14 +39,14 @@ impl State {
 		Self { 
 			gui: Gui::new(ctx),
 			circuit: Circuit::new(), 
-			add_element: vec![false, false, false, false],
+			add_element: vec![false, false, false, false, false],
 			selected_gate: None,
 			selected_source: None,
 			input_number: 2,
 			dragging_index: None,
 			drag_offset: None,
 			grid_image: canvas_grid,
-			grid_offset: Point2 { x: 0.0, y: 0.0 },
+			wire_start: None,
 		}
 	}
 
@@ -58,123 +60,222 @@ impl EventHandler for State {
 		egui::Window::new("Menu").show(&gui_ctx, |ui| {
 			ui.label("Logic Components");
 
-			// Button to create components
-			if ui.button("Logic Gates").clicked() {
-                self.add_element[0] = !self.add_element[0];
-			}
+			ui.with_layout(Layout::top_down(Align::Min), |ui| {			
+				// Button to create components
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Logic Gates")).clicked() {
+                	self.add_element[0] = !self.add_element[0];
+				}
 
-			// Button for the constants
-			if ui.button("Constants").clicked() {
-				self.add_element[1] = !self.add_element[1];
-			}
+				// Button for the constants
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Sources")).clicked() {
+					self.add_element[1] = !self.add_element[1];
+				}
 
-			// Button for the wires
-			if ui.button("Wire").clicked() {
-				self.add_element[2] = !self.add_element[2];
-			}
+				// Button for the wires
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Wire tool")).clicked() {
+					self.add_element[2] = !self.add_element[2];
+				}
 
-			// Button for the Muxes
-			if ui.button("Multiplexers").clicked() {
-				self.add_element[3] = !self.add_element[3];
-			}
+				// Button for the Muxes
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Multiplexers")).clicked() {
+					self.add_element[3] = !self.add_element[3];
+				}
 
-			if ui.button("quit").clicked() {
-				ctx.request_quit();
-			}
+				// Edit tool button
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Edit tool")).clicked() {
+					self.add_element[4] = !self.add_element[4];
+				}
 
-			// Window to choose the logic gates
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Quit")).clicked() {
+					ctx.request_quit();
+				}
+			});
+		
+			//* Window to choose the logic gates
 			if self.add_element[0] {
-				egui::Window::new("Logic Gate Selector").show(&gui_ctx, |ui| {
-					// Available gates
-					let gates = vec!["AND Gate", "OR Gate", "NOT Gate", "NAND Gate", "NOR Gate", "XOR Gate", "XNOR Gate"];
-	
-					// Iterate over gates and create buttons
-					ui.label("Select a gate:");
-					for gate in &gates {
-						if ui.button(*gate).clicked() {
-							// Flag that indicates which gate is selected
-							self.selected_gate = Some(gate.to_string());
-						}
-					}
-	
-					// Input number selection (2 to 16)
-					ui.label("Select the number of inputs:");
-					ui.add(egui::DragValue::new(&mut self.input_number)
-						.clamp_range(2..=16)
-						.speed(1));
-	
-					// Display selected gate and input number
-					if let Some(selected_gate) = &self.selected_gate {
-						ui.label(format!("Selected Gate: {}", selected_gate));
-						ui.label(format!("Number of Inputs: {}", self.input_number));
-					}
-
-					// Button to generate the gate
-					if ui.button("Generate").clicked() {
-                        if let Some(selected_gate) = &self.selected_gate {
-							// Get the gate variant
-							let gate_type: u32;
-							match selected_gate.as_str() {
-								"AND Gate" => gate_type = 0,
-								"OR Gate" => gate_type = 1,
-								"NOT Gate" => gate_type = 2,
-								"NAND Gate" => gate_type = 3,
-								"NOR Gate" => gate_type = 4,
-								"XOR Gate" => gate_type = 5,
-								"XNOR Gate" => gate_type = 6,
-								_ => panic!("Invalid Gate")
+				egui::Window::new("Logic Gate Selector")
+					.resizable(false)
+					.default_width(100.0) // Minimum size
+					.show(&gui_ctx, |ui| {
+						ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+						// Gate selection section
+							ui.label("Select a logic gate:");
+							ui.separator();
+							let button_size = egui::vec2(150.0, 30.0); // Uniform button size
+							let gates = vec![
+								"AND Gate", "OR Gate", "NOT Gate", 
+								"NAND Gate", "NOR Gate", "XOR Gate", "XNOR Gate",
+							];
+							for gate in &gates {
+								if ui.add_sized(button_size, egui::Button::new(*gate)).clicked() {
+									self.selected_gate = Some(gate.to_string());
+								}
 							}
-                            // Build the Gate component in the circuit
-							let mut gate = LogicElements::Gates(LogicGate::new_gate(gate_type, self.input_number as usize, false, 1));
-							let _ = gate.load_image(ctx);
-							self.circuit.add_element(gate);
-                        }
-					}
+			
+							ui.separator();
+			
+							// Number of inputs section
+							ui.label("Select the number of inputs:");
+							if let Some(gate) = &self.selected_gate {
+								match gate.as_str() {
+									"NOT Gate" => {
+										self.input_number = 1;
+										ui.label("NOT Gate only allows 1 input.");
+									}
+									_ => {
+										ui.add(egui::DragValue::new(&mut self.input_number)
+											.clamp_range(2..=16)
+											.speed(1));
+									}
+								}
+							}
+			
+							ui.separator();
+			
+							// Display selected gate and input number
+							if let Some(selected_gate) = &self.selected_gate {
+								ui.label(format!("Selected Gate: {}", selected_gate));
+								ui.label(format!("Number of Inputs: {}", self.input_number));
+							}
+			
+							ui.separator();
+			
+							// Generate button
+							if ui.add_sized(button_size, egui::Button::new("Generate")).clicked() {
+								if let Some(selected_gate) = &self.selected_gate {
+									let gate_type: u32 = match selected_gate.as_str() {
+										"AND Gate" => 0,
+										"OR Gate" => 1,
+										"NOT Gate" => 2,
+										"NAND Gate" => 3,
+										"NOR Gate" => 4,
+										"XOR Gate" => 5,
+										"XNOR Gate" => 6,
+										_ => panic!("Invalid Gate"),
+									};
+									let mut gate = LogicElements::Gates(
+										LogicGate::new_gate(gate_type, self.input_number as usize, false, 1),
+									);
+									let _ = gate.load_image(ctx); // Load the gate image
+									self.circuit.add_element(gate); // Add the gate to the circuit
+								}
+							}
+			
+							// Close button
+							if ui.add_sized(button_size, egui::Button::new("Close")).clicked() {
+								self.add_element[0] = false;
+							}
+						});
+					});
+				}
 
-					// Button to close the window
-					if ui.button("Close").clicked() {
-						self.add_element[0] = false;
-					}
-						
-				});
-			}
-
-			// Window to choose the source element
+			//* Window to choose the source element
 			if self.add_element[1] {
-				egui::Window::new("Sources").show(&gui_ctx, |ui| {
-					// Two buttons for selecting high or low source
-					if ui.button("High Source").clicked() {
-						self.selected_source = Some("High".to_string());
-					}
-					if ui.button("Low Source").clicked() {
-						self.selected_source = Some("Low".to_string());
-					}
-			
-					// If a source is selected, show the "Generate" button
-					if let Some(selected_source) = &self.selected_source {
-						ui.label(format!("Selected Source: {}", selected_source));
-						let value;
-						if ui.button("Generate").clicked() {
-							// Generate the selected source
-							match selected_source.as_str() {
-								"High" => value = 1,
-								"Low" => value = 0,
-								_ => panic!("Invalid source type")
+				egui::Window::new("Sources")
+					.resizable(false) 
+					.default_width(100.0)
+					.show(&gui_ctx, |ui| {
+						ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {		
+							if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("High Source")).clicked() {
+								self.selected_source = Some("High".to_string());
 							}
-							let mut source = LogicElements::Source(Source::new(value));
-							let _ = source.load_image(ctx);
-							self.circuit.add_element(source);
+							if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Low Source")).clicked() {
+								self.selected_source = Some("Low".to_string());
+							}
+			
+							ui.separator(); // Add separator between buttons and other sections
+			
+							// If a source is selected, show the "Generate" button
+							if let Some(selected_source) = &self.selected_source {
+								ui.label(format!("Selected Source: {}", selected_source));
+			
+								//ui.separator();
+			
+								if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Generate")).clicked() {
+									// Generate the selected source
+									let value = match selected_source.as_str() {
+										"High" => 1,
+										"Low" => 0,
+										_ => panic!("Invalid source type"),
+									};
+			
+									let mut source = LogicElements::Source(Source::new(value));
+									let _ = source.load_image(ctx);
+									self.circuit.add_element(source);
+								}
+							}
+			
+							//Close button for this window, if necessary
+							if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Close")).clicked() {
+								self.add_element[1] = false;
+							}
+						});
+					});
+			}
+
+			//* Wire logic
+			if self.add_element[2] {
+				// The grid size indicates the distance between 2 points in the grid
+				let grid_size = 10.0;
+				let mouse_pos = ctx.mouse.position();
+				let snapped_mouse_pos = Point2 { 
+					x: (mouse_pos.x / grid_size).round() * grid_size, 
+					y: (mouse_pos.y / grid_size).round() * grid_size 
+				};
+			
+				if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) {
+					// Start drawing if not already started
+					if self.wire_start.is_none() {
+						self.wire_start = Some(snapped_mouse_pos);
+					}
+				} else if ctx.mouse.button_just_released(input::mouse::MouseButton::Left) {
+					if let Some(start_point) = self.wire_start.take() {
+						if start_point != snapped_mouse_pos {
+							// Calculate the greater deviation
+							let dx = (snapped_mouse_pos.x - start_point.x).abs();
+							let dy = (snapped_mouse_pos.y - start_point.y).abs();
+			
+							let segment = if dx >= dy {
+								// Horizontal segment
+								WireSegment {
+									start: start_point,
+									end: Point2 { x: snapped_mouse_pos.x, y: start_point.y },
+									hitbox: Rect {
+										x: start_point.x.min(snapped_mouse_pos.x),
+										y: start_point.y - 5.0,
+										w: dx,
+										h: 10.0,
+									},
+								}
+							} else {
+								// Vertical segment
+								WireSegment {
+									start: start_point,
+									end: Point2 { x: start_point.x, y: snapped_mouse_pos.y },
+									hitbox: Rect {
+										x: start_point.x - 5.0,
+										y: start_point.y.min(snapped_mouse_pos.y),
+										w: 10.0,
+										h: dy,
+									},
+								}
+							};
+			
+							// Store the wire with a single segment
+							self.circuit.wires.push(Wire {
+								pins: vec![],
+								segments: vec![segment],
+							});
 						}
 					}
-				});
+				}
 			}
 			
-			// Drag the component
+			//* Logic to drag the component
 			if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) {
 				let mouse_pos = ctx.mouse.position();
-			
-				// Check if we are initiating a drag
-				if self.dragging_index.is_none() {
+				// Check if we are initiating a drag, also check that we are not in the wire tool
+				if self.dragging_index.is_none() && !self.add_element[2] {
 					for (i, component) in self.circuit.components.iter().enumerate() {
 						let hitbox = component.get_hitbox();
 						if hitbox.contains(mouse_pos) {
@@ -224,19 +325,59 @@ impl EventHandler for State {
 				canvas.draw(&image, draw_params);
 			}
 		}
+
+		///////////////////////////////////////////////////////////
+    	// DRAW WIRES
+    	///////////////////////////////////////////////////////////
+    	for wire in &self.circuit.wires {
+        	for segment in &wire.segments {
+				// Segments of the wire
+            	let line = vec![
+                	Point2 { x: segment.start.x, y: segment.start.y},
+                	Point2 { x: segment.end.x, y: segment.end.y},
+            	];
+            	let line_mesh = Mesh::new_line(ctx, &line, 4.0, Color::BLUE)?;
+            	canvas.draw(&line_mesh, DrawParam::default());
+
+				// Hitbox of the wire
+				let hitbox_mesh = Mesh::new_rectangle(
+					ctx,
+					DrawMode::stroke(1.0),
+					segment.hitbox,
+					Color::RED, // Semi-transparent red
+				)?;
+				//canvas.draw(&hitbox_mesh, DrawParam::default());
+        	}
+    	}
+    	///////////////////////////////////////////////////////////
 		
 		///////////////////////////////////////////////////////////
 		// HITBOXES
 		///////////////////////////////////////////////////////////
 		for component in &self.circuit.components {
+			// Get the component's main hitbox and pin hitboxes
 			let hitbox = component.get_hitbox();
-			let rect_mesh = Mesh::new_rectangle(
+			let pins = component.get_pins_hitbox();
+		
+			// Draw the component's main hitbox
+			let component_hitbox = Mesh::new_rectangle(
 				ctx,
 				DrawMode::stroke(2.0),
 				hitbox,
 				Color::RED,
 			)?;
-			canvas.draw(&rect_mesh, DrawParam::default());
+			canvas.draw(&component_hitbox, DrawParam::default());
+		
+			// Draw each pin's hitbox
+			for pin_hitbox in pins {
+				let pin_mesh = Mesh::new_rectangle(
+					ctx,
+					DrawMode::stroke(2.0),
+					pin_hitbox,
+					Color::BLUE, 
+				)?;
+				canvas.draw(&pin_mesh, DrawParam::default());
+			}
 		}
 		///////////////////////////////////////////////////////////
 		

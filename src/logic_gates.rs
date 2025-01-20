@@ -1,4 +1,4 @@
-use std::{clone, path::absolute};
+use std::{clone, path::absolute, pin, vec};
 use crate::structure::*;
 use ggez::{graphics::{Image, Rect}, mint::Point2, Context, GameResult};
 
@@ -13,6 +13,7 @@ pub struct LogicGate {
     pub position: Point2<f32>, 
     pub image: Option<Image>, 
     pub hitbox: Rect,
+    //pub pin_hitbox: Vec<Rect>
 }
 
 impl LogicGate {
@@ -28,6 +29,17 @@ impl LogicGate {
                         cid: 0,
                         pid: i + 1, // Assign unique pid starting from 1
                         ioc: 1,
+                        hitbox: Rect {
+                            x: 3.5,
+                            y: {
+                                match gate_type {
+                                    2 => 33.5 + (20.0 * i as f32),
+                                    _ => 23.5 + (20.0 * i as f32),
+                                }
+                            },
+                            w: 5.0,
+                            h: 5.0, 
+                        }
                     })
                     .collect(),
                 output: Pin {
@@ -35,6 +47,12 @@ impl LogicGate {
                     cid: 0,
                     pid: 1,
                     ioc: 0,
+                    hitbox: Rect {
+                        x: 73.5,
+                        y: 33.5,
+                        w: 5.0,
+                        h: 5.0,
+                    }
                 },
                 num_input: num_inputs,
                 r#type: match gate_type {
@@ -50,7 +68,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 90.0, h: 70.0 }
+                hitbox: Rect { x: 0.0, y: 0.0, w: 90.0, h: 70.0 },
             }
             
         } else {
@@ -63,6 +81,17 @@ impl LogicGate {
                         cid: 0,
                         pid: i + 1, // Assign unique pid for each pin
                         ioc: 1,
+                        hitbox: Rect {
+                            x: 3.5,
+                            y: {
+                                match gate_type {
+                                    2 => 33.5 + (20.0 * i as f32),
+                                    _ => 23.5 + (20.0 * i as f32),
+                                }
+                            },
+                            w: 5.0,
+                            h: 5.0, 
+                        }
                     })
                     .collect(),
                 output: Pin {
@@ -70,6 +99,12 @@ impl LogicGate {
                     cid: 0,
                     pid: 1,
                     ioc: 0,
+                    hitbox: Rect {
+                        x: 73.5,
+                        y: 33.5,
+                        w: 5.0,
+                        h: 5.0,
+                    }
                 },
                 num_input: num_inputs,
                 r#type: match gate_type {
@@ -85,7 +120,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 }
+                hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 },
             }
         };
         gate
@@ -320,18 +355,44 @@ impl LogicGate {
         self.hitbox
     }
 
-    pub fn update_gate_position(&mut self, position: Point2<f32>){
-        self.position = Point2{x: position.x, y: position.y};
+    pub fn update_gate_position(&mut self, position: Point2<f32>) {
+        // Calculate the delta (difference) between the new and old positions
+        let dx = position.x - self.position.x;
+        let dy = position.y - self.position.y;
+    
+        // Update the component's position
+        self.position = Point2 { x: position.x, y: position.y };
         self.hitbox.x = position.x;
         self.hitbox.y = position.y;
+    
+        // Update each pin's position using the delta
+        for pin in &mut self.input {
+            pin.hitbox.x += dx;
+            pin.hitbox.y += dy;
+        }
+        // Update also the output position
+        let pin = &mut self.output;
+        pin.hitbox.x += dx;
+        pin.hitbox.y += dy;
     }
-
     pub fn get_gate_image(&self) -> Option<Image>{
         self.image.clone()
     }
 
     pub fn get_gate_position(&self) -> Point2<f32>{
         self.position
+    }
+
+    pub fn gate_pins_hitbox(&self) -> Vec<Rect>{
+        // Add the hitboxes of the input pins
+        let mut hitboxes: Vec<Rect> = vec![];
+        for pin in &self.input {
+            hitboxes.push(pin.hitbox)
+        }
+        // Now add the output hitbox as well
+        let out = &self.output;
+        hitboxes.push(out.hitbox);
+        hitboxes
     }
 }
 
@@ -347,6 +408,7 @@ impl clone::Clone for LogicGate {
             position: self.position.clone(),
             image: self.image.clone(),
             hitbox: self.hitbox.clone(),
+           // pin_hitbox: self.pin_hitbox.clone(),
         }
     }
     

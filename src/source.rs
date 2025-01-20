@@ -11,7 +11,8 @@ pub struct Source {
     output: Pin,
     pub position: Point2<f32>,
     image: Option<Image>, 
-    hitbox: Rect  
+    hitbox: Rect,
+    //pin_hitbox: Rect,  
 }
 impl Source {
     pub fn new(value: usize) -> Self{
@@ -23,11 +24,12 @@ impl Source {
                     1 => PinValue::Single(Signal::On),
                     _ => panic!("Invalid source type")
                 },
-                cid: 0, pid: 1, ioc: 0 
+                cid: 0, pid: 1, ioc: 0,
+                hitbox:  Rect { x: 10.0, y: 10.0, w: 5.0, h: 5.0 },
                 },
             position: Point2 { x: 0.0, y: 0.0 },
             image: None,
-            hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 }
+            hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 },
         }
     }
 
@@ -72,9 +74,15 @@ impl Source {
     }
 
     pub fn update_source_position(&mut self, position: Point2<f32>){
+        let dx = position.x - self.position.x;
+        let dy = position.y - self.position.y;
+
         self.position = position;
         self.hitbox.x = position.x;
         self.hitbox.y = position.y;
+        // Update the pin's hitbox position as well
+        self.output.hitbox.x += dx ;
+        self.output.hitbox.y += dy ;
     }
 
     pub fn get_source_image(&self) -> Option<Image>{
@@ -83,5 +91,10 @@ impl Source {
 
     pub fn get_source_position(&self) -> Point2<f32>{
         self.position
+    }
+
+    pub fn source_pins_hitbox(&self) -> Vec<Rect>{
+        let pin = &self.output;
+        vec![pin.hitbox]
     }
 }

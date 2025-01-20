@@ -3,9 +3,8 @@ use ggez::mint::Point2;
 use ggez::{Context, graphics::Rect};
 use ggez::GameResult;
 
-use crate::logic_gates;
-use crate::logic_gates::*;
-use crate::source::*;
+use crate::logic_gates::{self, *};
+use crate::source::{self, *};
 use crate::structure::*;
 
 #[derive(Debug)]
@@ -71,6 +70,14 @@ impl LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.get_gate_hitbox(),
             LogicElements::Source(source) => source.get_source_hitbox(),
+            _ => todo!()
+        }
+    }
+
+    pub fn get_pins_hitbox(&self) -> Vec<Rect>{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.gate_pins_hitbox(),
+            LogicElements::Source(source) => source.source_pins_hitbox(),
             _ => todo!()
         }
     }
@@ -173,9 +180,7 @@ impl Circuit {
                 from_wire.pins.push(from_pin_id);
                 from_wire.pins.push(to_pin_id);
                 from_wire.pins.dedup();
-    
                 from_wire.segments.extend(to_wire.segments);
-    
                 self.wires.push(from_wire);
             }
             (Some(wire_index), None) | (None, Some(wire_index)) => {
