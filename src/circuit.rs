@@ -3,8 +3,8 @@ use ggez::mint::Point2;
 use ggez::{Context, graphics::Rect};
 use ggez::GameResult;
 
-use crate::logic_gates::{self, *};
-use crate::source::{self, *};
+use crate::logic_gates::*;
+use crate::source::*;
 use crate::structure::*;
 
 #[derive(Debug)]
@@ -82,10 +82,10 @@ impl LogicElements {
         }
     }
 
-    pub fn update_postion(&mut self, c_position:Point2<f32>){
+    pub fn update_postion(&mut self, new_position:Point2<f32>){
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.update_gate_position(c_position),
-            LogicElements::Source(source) => source.update_source_position(c_position),
+            LogicElements::Gates(logic_gate) => logic_gate.update_gate_position(new_position),
+            LogicElements::Source(source) => source.update_source_position(new_position),
             _ => todo!(),
         }
     }
@@ -102,6 +102,14 @@ impl LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.get_gate_position(),
             LogicElements::Source(source) => source.get_source_position(),
+            _ => todo!(),
+        }
+    }
+
+    pub fn get_refpin_pos(&self) -> Point2<f32>{
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.ref_pin_pos,
+            LogicElements::Source(source) => Point2 { x: 0.0, y: 0.0 },
             _ => todo!(),
         }
     }

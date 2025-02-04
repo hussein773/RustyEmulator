@@ -29,7 +29,7 @@ impl Source {
                 },
             position: Point2 { x: 0.0, y: 0.0 },
             image: None,
-            hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 },
+            hitbox: Rect { x: 0.0, y: 0.0, w: 20.0, h: 20.0 },
         }
     }
 

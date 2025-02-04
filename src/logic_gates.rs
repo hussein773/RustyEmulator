@@ -13,7 +13,7 @@ pub struct LogicGate {
     pub position: Point2<f32>, 
     pub image: Option<Image>, 
     pub hitbox: Rect,
-    //pub pin_hitbox: Vec<Rect>
+    pub ref_pin_pos: Point2<f32>,
 }
 
 impl LogicGate {
@@ -30,7 +30,7 @@ impl LogicGate {
                         pid: i + 1, // Assign unique pid starting from 1
                         ioc: 1,
                         hitbox: Rect {
-                            x: 3.5,
+                            x: 4.0,
                             y: {
                                 match gate_type {
                                     2 => 33.5 + (20.0 * i as f32),
@@ -68,7 +68,8 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 90.0, h: 70.0 },
+                hitbox: Rect { x: 0.0, y: 0.0, w: 50.0, h: 50.0 },
+                ref_pin_pos: Point2 { x: 6.0, y: 25.0 },
             }
             
         } else {
@@ -82,7 +83,7 @@ impl LogicGate {
                         pid: i + 1, // Assign unique pid for each pin
                         ioc: 1,
                         hitbox: Rect {
-                            x: 3.5,
+                            x: 4.0,
                             y: {
                                 match gate_type {
                                     2 => 33.5 + (20.0 * i as f32),
@@ -101,7 +102,7 @@ impl LogicGate {
                     ioc: 0,
                     hitbox: Rect {
                         x: 73.5,
-                        y: 33.5,
+                        y: 32.5,
                         w: 5.0,
                         h: 5.0,
                     }
@@ -121,6 +122,7 @@ impl LogicGate {
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
                 hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 },
+                ref_pin_pos: Point2 { x: 6.0, y: 25.0 },
             }
         };
         gate
@@ -360,11 +362,6 @@ impl LogicGate {
         let dx = position.x - self.position.x;
         let dy = position.y - self.position.y;
     
-        // Update the component's position
-        self.position = Point2 { x: position.x, y: position.y };
-        self.hitbox.x = position.x;
-        self.hitbox.y = position.y;
-    
         // Update each pin's position using the delta
         for pin in &mut self.input {
             pin.hitbox.x += dx;
@@ -374,7 +371,17 @@ impl LogicGate {
         let pin = &mut self.output;
         pin.hitbox.x += dx;
         pin.hitbox.y += dy;
+    
+        // Update the component's position
+        self.position = Point2 { x: position.x, y: position.y };
+        self.hitbox.x = position.x;
+        self.hitbox.y = position.y;
+
+        // Update the ref_pin position
+        self.ref_pin_pos.x += dx;
+        self.ref_pin_pos.y += dy;
     }
+
     pub fn get_gate_image(&self) -> Option<Image>{
         self.image.clone()
     }
@@ -408,7 +415,7 @@ impl clone::Clone for LogicGate {
             position: self.position.clone(),
             image: self.image.clone(),
             hitbox: self.hitbox.clone(),
-           // pin_hitbox: self.pin_hitbox.clone(),
+            ref_pin_pos: self.ref_pin_pos.clone(),
         }
     }
     

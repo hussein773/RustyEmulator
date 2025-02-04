@@ -60,24 +60,6 @@ impl Wire {
 }
 
 
-//TODO: Helper function to get / set the value of a pin
-/*impl Pin {
-    pub fn get_value(&self) -> PinValue {
-        match &self.value {
-            PinValue::Single(signal) => PinValue::Single(*signal),
-            PinValue::Multiple(signals) => PinValue::Multiple(signals.clone()),
-        }
-    }
-
-    pub fn set_value(&self, value: Signal) -> PinValue {
-        Pin {
-            value,
-            r#type: self.r#type.clone(),
-        }
-    }
-}*/
-
-
 impl PartialEq for PinValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

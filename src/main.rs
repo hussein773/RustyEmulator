@@ -13,8 +13,7 @@ use ggegui::egui::{vec2, Align, Layout, Vec2};
 use ggegui::{egui, Gui};
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{Canvas, Color, DrawMode, DrawParam, Image, Mesh, Rect};
-use ggez::{Context, ContextBuilder, GameResult, input};
-use ggez::mint::Point2;
+use ggez::{Context, ContextBuilder, GameResult, input, mint::Point2, conf::{Conf, WindowSetup}};
 
  
 const UI_BUTTON_SIZE: Vec2 = vec2(150.0, 30.0);
@@ -95,7 +94,7 @@ impl EventHandler for State {
 			if self.add_element[0] {
 				egui::Window::new("Logic Gate Selector")
 					.resizable(false)
-					.default_width(100.0) // Minimum size
+					.default_width(100.0)
 					.show(&gui_ctx, |ui| {
 						ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
 						// Gate selection section
@@ -273,40 +272,67 @@ impl EventHandler for State {
 			
 			//* Logic to drag the component
 			if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) {
-				let mouse_pos = ctx.mouse.position();
-				// Check if we are initiating a drag, also check that we are not in the wire tool
-				if self.dragging_index.is_none() && !self.add_element[2] {
-					for (i, component) in self.circuit.components.iter().enumerate() {
-						let hitbox = component.get_hitbox();
-						if hitbox.contains(mouse_pos) {
-							// Set the drag offset and index
-							let component_pos = component.get_position();
-							self.drag_offset = Some(Point2 {
-								x: mouse_pos.x - component_pos.x,
-								y: mouse_pos.y - component_pos.y,
-							});
-							self.dragging_index = Some(i);
-							break;
-						}
-					}
-				}
-			}
-			
-			// If dragging then update the position of the selected component with the offset
-			if let Some(index) = self.dragging_index {
-				let mouse_pos = ctx.mouse.position();
-				if let Some(offset) = self.drag_offset {
-					let new_position = Point2 {
-						x: mouse_pos.x - offset.x,
-						y: mouse_pos.y - offset.y,
-					};
-					self.circuit.components[index].update_postion(new_position);
-				}
+    			let mouse_pos = ctx.mouse.position();
+
+    			// Initiate dragging
+    			if self.dragging_index.is_none() && !self.add_element[2] {
+        			for (i, component) in self.circuit.components.iter().enumerate() {
+            			let hitbox = component.get_hitbox();
+            			if hitbox.contains(mouse_pos) {
+                			let component_pos = component.get_position();
+                			self.drag_offset = Some(Point2 {
+                    			x: mouse_pos.x - component_pos.x,
+                    			y: mouse_pos.y - component_pos.y,
+                			});
+                			self.dragging_index = Some(i);
+                			break;
+            			}
+        			}
+    			}
+
+    			// Update position while dragging
+    			if let Some(index) = self.dragging_index {
+        			if let Some(offset) = self.drag_offset {
+            			let new_position = Point2 {
+                			x: mouse_pos.x - offset.x,
+                			y: mouse_pos.y - offset.y,
+            			};
+            		self.circuit.components[index].update_postion(new_position);
+        			}
+    			}
 			}
 
-    		if ctx.mouse.button_just_released(input::mouse::MouseButton::Left) {
-        		self.dragging_index = None;
-    		}
+			// Snap to grid on mouse release
+			if ctx.mouse.button_just_released(input::mouse::MouseButton::Left) {
+    			if let Some(index) = self.dragging_index {
+        			let component = &self.circuit.components[index];
+
+        			// Get the current position of the reference pin
+        			let reference_pin = component.get_refpin_pos();
+
+        			// Find the nearest grid point
+        			let snapped_x = (reference_pin.x / 10.0).round() * 10.0;
+        			let snapped_y = (reference_pin.y / 10.0).round() * 10.0;
+
+        			// Calculate the displacement 
+        			let displacement = Point2 {
+            			x: snapped_x - reference_pin.x,
+            			y: snapped_y - reference_pin.y,
+        			};
+
+        			// Apply the displacement to the component
+        			let new_position = Point2 {
+            			x: component.get_position().x + displacement.x,
+            			y: component.get_position().y + displacement.y,
+        			};
+
+        			self.circuit.components[index].update_postion(new_position);
+    			}
+
+    			// Clear drag state
+    			self.dragging_index = None;
+    			self.drag_offset = None;
+			}
 		});
 		self.gui.update(ctx);
 		Ok(())
@@ -340,13 +366,13 @@ impl EventHandler for State {
             	canvas.draw(&line_mesh, DrawParam::default());
 
 				// Hitbox of the wire
-				let hitbox_mesh = Mesh::new_rectangle(
+				/*let hitbox_mesh = Mesh::new_rectangle(
 					ctx,
 					DrawMode::stroke(1.0),
 					segment.hitbox,
-					Color::RED, // Semi-transparent red
+					Color::RED, 
 				)?;
-				//canvas.draw(&hitbox_mesh, DrawParam::default());
+				canvas.draw(&hitbox_mesh, DrawParam::default());*/
         	}
     	}
     	///////////////////////////////////////////////////////////
@@ -366,7 +392,7 @@ impl EventHandler for State {
 				hitbox,
 				Color::RED,
 			)?;
-			canvas.draw(&component_hitbox, DrawParam::default());
+			//canvas.draw(&component_hitbox, DrawParam::default());
 		
 			// Draw each pin's hitbox
 			for pin_hitbox in pins {
@@ -389,8 +415,16 @@ impl EventHandler for State {
 
 
 fn main() {
-	
-	let (mut ctx, event_loop) = ContextBuilder::new("Rusty Emulator", "author").build().unwrap();
+	let window_setup = WindowSetup {
+        title: "Rusty Simulator".to_string(), 
+        ..Default::default()
+    };
+
+    let conf = Conf {
+        window_setup,
+        ..Default::default()
+    };
+	let (mut ctx, event_loop) = ContextBuilder::new("Rusty Emulator", "author").default_conf(conf).build().unwrap();
 	let state = State::new(&mut ctx);
 	event::run(ctx, event_loop, state);
 	
