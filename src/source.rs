@@ -1,18 +1,16 @@
-use std::clone;
 use crate::structure::*;
-use ggegui::{egui::output, Input};
 use ggez::mint::Point2;
 use ggez::graphics::{Image, Rect};
 use ggez::{Context, GameResult};
 
 #[derive(Debug, Clone)]
 pub struct Source {
-    id: usize,
-    output: Pin,
+    pub id: usize,
+    pub output: Pin,
     pub position: Point2<f32>,
-    image: Option<Image>, 
-    hitbox: Rect,
-    //pin_hitbox: Rect,  
+    pub image: Option<Image>, 
+    pub hitbox: Rect,
+    pub ref_pin_pos: Point2<f32>,  
 }
 impl Source {
     pub fn new(value: usize) -> Self{
@@ -25,11 +23,12 @@ impl Source {
                     _ => panic!("Invalid source type")
                 },
                 cid: 0, pid: 1, ioc: 0,
-                hitbox:  Rect { x: 10.0, y: 10.0, w: 5.0, h: 5.0 },
+                hitbox:  Rect { x: 70.5, y: 34.5, w: 5.0, h: 5.0 },
                 },
             position: Point2 { x: 0.0, y: 0.0 },
             image: None,
-            hitbox: Rect { x: 0.0, y: 0.0, w: 20.0, h: 20.0 },
+            hitbox: Rect { x: 46.0, y: 27.0, w: 20.0, h: 20.0 },
+            ref_pin_pos: Point2{ x: 73.0, y: 37.0},
         }
     }
 
@@ -69,31 +68,28 @@ impl Source {
         Ok(())
     }
 
-    pub fn get_source_hitbox(&self) -> Rect {
-        self.hitbox
-    }
-
     pub fn update_source_position(&mut self, position: Point2<f32>){
         let dx = position.x - self.position.x;
         let dy = position.y - self.position.y;
 
+        // Maintain the local offset of the hitbox relative to the source
+        let hitbox_offset = Point2{x: self.hitbox.x - self.position.x, y: self.hitbox.y - self.position.y};
         self.position = position;
-        self.hitbox.x = position.x;
-        self.hitbox.y = position.y;
+
+        // Apply the offset correctly in global coordinates
+        self.hitbox.x = position.x + hitbox_offset.x;
+        self.hitbox.y = position.y + hitbox_offset.y;
+
         // Update the pin's hitbox position as well
         self.output.hitbox.x += dx ;
         self.output.hitbox.y += dy ;
+
+        // Update the ref_pin position
+        self.ref_pin_pos.x += dx;
+        self.ref_pin_pos.y += dy;
     }
 
-    pub fn get_source_image(&self) -> Option<Image>{
-        self.image.clone()
-    }
-
-    pub fn get_source_position(&self) -> Point2<f32>{
-        self.position
-    }
-
-    pub fn source_pins_hitbox(&self) -> Vec<Rect>{
+    pub fn source_pin_hitbox(&self) -> Vec<Rect>{
         let pin = &self.output;
         vec![pin.hitbox]
     }

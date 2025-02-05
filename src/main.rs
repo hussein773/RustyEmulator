@@ -2,8 +2,10 @@ mod circuit;
 mod logic_gates;
 mod source;
 mod structure;
+mod led;
 
 use std::vec;
+use led::Led;
 use source::Source;
 use structure::*;
 use logic_gates::*;
@@ -38,7 +40,7 @@ impl State {
 		Self { 
 			gui: Gui::new(ctx),
 			circuit: Circuit::new(), 
-			add_element: vec![false, false, false, false, false],
+			add_element: vec![false; 6],
 			selected_gate: None,
 			selected_source: None,
 			input_number: 2,
@@ -63,26 +65,73 @@ impl EventHandler for State {
 				// Button to create components
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Logic Gates")).clicked() {
                 	self.add_element[0] = !self.add_element[0];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 0 {
+            				self.add_element[i] = false;
+        				}
+    				}
 				}
 
 				// Button for the constants
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Sources")).clicked() {
 					self.add_element[1] = !self.add_element[1];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 1 {
+            				self.add_element[i] = false;
+        				}
+    				}
+				}
+
+				// Button for the leds
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Leds")).clicked() {
+					self.add_element[2] = !self.add_element[2];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 2 {
+            				self.add_element[i] = false;
+        				}
+    				}
+					// Add the led
+					if self.add_element[2] {
+						let mut led = LogicElements::Leds(Led::new());
+						let _ = led.load_image(ctx);
+						self.circuit.add_element(led);
+					}
 				}
 
 				// Button for the wires
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Wire tool")).clicked() {
-					self.add_element[2] = !self.add_element[2];
+					self.add_element[3] = !self.add_element[3];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 3 {
+            				self.add_element[i] = false;
+        				}
+    				}
 				}
 
 				// Button for the Muxes
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Multiplexers")).clicked() {
-					self.add_element[3] = !self.add_element[3];
+					self.add_element[4] = !self.add_element[4];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 4 {
+            				self.add_element[i] = false;
+        				}
+    				}
 				}
 
 				// Edit tool button
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Edit tool")).clicked() {
-					self.add_element[4] = !self.add_element[4];
+					self.add_element[5] = !self.add_element[5];
+					// Set all other elements to false
+    				for i in 0..self.add_element.len() {
+        				if i != 5 {
+            				self.add_element[i] = false;
+        				}
+    				}
 				}
 
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Quit")).clicked() {
@@ -160,8 +209,9 @@ impl EventHandler for State {
 								}
 							}
 			
-							// Close button
-							if ui.add_sized(button_size, egui::Button::new("Close")).clicked() {
+							// Close the window if close button is pressed or any other option is selected
+
+							if ui.add_sized(button_size, egui::Button::new("Close")).clicked(){
 								self.add_element[0] = false;
 							}
 						});
@@ -182,7 +232,7 @@ impl EventHandler for State {
 								self.selected_source = Some("Low".to_string());
 							}
 			
-							ui.separator(); // Add separator between buttons and other sections
+							ui.separator(); 
 			
 							// If a source is selected, show the "Generate" button
 							if let Some(selected_source) = &self.selected_source {
@@ -211,9 +261,13 @@ impl EventHandler for State {
 						});
 					});
 			}
+			// debug
+			if ctx.mouse.button_pressed(input::mouse::MouseButton::Right){
+				println!("{:?}", ctx.mouse.position());
+			}
 
 			//* Wire logic
-			if self.add_element[2] {
+			if self.add_element[3] {
 				// The grid size indicates the distance between 2 points in the grid
 				let grid_size = 10.0;
 				let mouse_pos = ctx.mouse.position();
@@ -380,7 +434,7 @@ impl EventHandler for State {
 		///////////////////////////////////////////////////////////
 		// HITBOXES
 		///////////////////////////////////////////////////////////
-		for component in &self.circuit.components {
+		/*for component in &self.circuit.components {
 			// Get the component's main hitbox and pin hitboxes
 			let hitbox = component.get_hitbox();
 			let pins = component.get_pins_hitbox();
@@ -392,7 +446,7 @@ impl EventHandler for State {
 				hitbox,
 				Color::RED,
 			)?;
-			//canvas.draw(&component_hitbox, DrawParam::default());
+			canvas.draw(&component_hitbox, DrawParam::default());
 		
 			// Draw each pin's hitbox
 			for pin_hitbox in pins {
@@ -404,7 +458,7 @@ impl EventHandler for State {
 				)?;
 				canvas.draw(&pin_mesh, DrawParam::default());
 			}
-		}
+		}*/
 		///////////////////////////////////////////////////////////
 		
         // Draw the GUI

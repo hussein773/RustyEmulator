@@ -3,14 +3,16 @@ use ggez::mint::Point2;
 use ggez::{Context, graphics::Rect};
 use ggez::GameResult;
 
-use crate::logic_gates::*;
+use crate::{led, logic_gates::*};
 use crate::source::*;
 use crate::structure::*;
+use crate::led::*;
 
 #[derive(Debug)]
 pub enum LogicElements {
     Gates(LogicGate),
     Source(Source),
+    Leds(Led),
     Clock,
     Adders,
     Multiplexers,
@@ -62,14 +64,16 @@ impl LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.load_gate_image(ctx),
             LogicElements::Source(source) => source.load_source_image(ctx),
+            LogicElements::Leds(led) => led.load_led_image(ctx),
             _ => todo!(),
         }
     }
 
     pub fn get_hitbox(&self) -> Rect{
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.get_gate_hitbox(),
-            LogicElements::Source(source) => source.get_source_hitbox(),
+            LogicElements::Gates(logic_gate) => logic_gate.hitbox,
+            LogicElements::Source(source) => source.hitbox,
+            LogicElements::Leds(led) => led.hitbox,
             _ => todo!()
         }
     }
@@ -77,7 +81,8 @@ impl LogicElements {
     pub fn get_pins_hitbox(&self) -> Vec<Rect>{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.gate_pins_hitbox(),
-            LogicElements::Source(source) => source.source_pins_hitbox(),
+            LogicElements::Source(source) => source.source_pin_hitbox(),
+            LogicElements::Leds(led) => led.led_pin_hitbox(),
             _ => todo!()
         }
     }
@@ -86,22 +91,25 @@ impl LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.update_gate_position(new_position),
             LogicElements::Source(source) => source.update_source_position(new_position),
+            LogicElements::Leds(led) => led.update_led_position(new_position),
             _ => todo!(),
         }
     }
 
     pub fn get_image(&self) -> Option<Image>{
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.get_gate_image(),
-            LogicElements::Source(source) => source.get_source_image(),
+            LogicElements::Gates(logic_gate) => logic_gate.image.clone(),
+            LogicElements::Source(source) => source.image.clone(),
+            LogicElements::Leds(led) => led.image.clone(),
             _ => todo!(),
         }
     }
 
     pub fn get_position(&self) -> Point2<f32>{
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.get_gate_position(),
-            LogicElements::Source(source) => source.get_source_position(),
+            LogicElements::Gates(logic_gate) => logic_gate.position,
+            LogicElements::Source(source) => source.position,
+            LogicElements::Leds(led) => led.position,
             _ => todo!(),
         }
     }
@@ -109,7 +117,8 @@ impl LogicElements {
     pub fn get_refpin_pos(&self) -> Point2<f32>{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.ref_pin_pos,
-            LogicElements::Source(source) => Point2 { x: 0.0, y: 0.0 },
+            LogicElements::Source(source) => source.ref_pin_pos,
+            LogicElements::Leds(led) => led.ref_pin_pos,
             _ => todo!(),
         }
     }
@@ -121,13 +130,7 @@ impl Clone for LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => LogicElements::Gates(logic_gate.clone()),
             LogicElements::Source(source) => LogicElements::Source(source.clone()),
-            LogicElements::Clock => LogicElements::Clock,
-            LogicElements::Adders => LogicElements::Adders,
-            LogicElements::Multiplexers => LogicElements::Multiplexers,
-            LogicElements::Demultiplexers => LogicElements::Demultiplexers,
-            LogicElements::ShiftRegisters => LogicElements::ShiftRegisters,
-            LogicElements::FlipFlops => LogicElements::FlipFlops,
-            LogicElements::LatchRegisters => LogicElements::LatchRegisters,
+            _ => todo!(),
         }
     }
 }
@@ -216,7 +219,7 @@ impl Circuit {
         match &mut component {
             LogicElements::Gates(logic_gate) => logic_gate.set_gate_id(self.component_id),
             LogicElements::Source(source) => source.set_id(self.component_id),
-            //TODO ADD THE REST OF THE COMPONENTS
+            LogicElements:: Leds(led) => led.set_id(self.component_id),
             _ => todo!(),
         }
         self.component_id += 1;

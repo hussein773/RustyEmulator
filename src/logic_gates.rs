@@ -353,9 +353,6 @@ impl LogicGate {
         Ok(())
     }
 
-    pub fn get_gate_hitbox(&self) -> Rect{
-        self.hitbox
-    }
 
     pub fn update_gate_position(&mut self, position: Point2<f32>) {
         // Calculate the delta (difference) between the new and old positions
@@ -380,14 +377,6 @@ impl LogicGate {
         // Update the ref_pin position
         self.ref_pin_pos.x += dx;
         self.ref_pin_pos.y += dy;
-    }
-
-    pub fn get_gate_image(&self) -> Option<Image>{
-        self.image.clone()
-    }
-
-    pub fn get_gate_position(&self) -> Point2<f32>{
-        self.position
     }
 
     pub fn gate_pins_hitbox(&self) -> Vec<Rect>{
