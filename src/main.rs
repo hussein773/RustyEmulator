@@ -2,12 +2,14 @@ mod circuit;
 mod logic_gates;
 mod source;
 mod structure;
+mod sweep_line;
 mod led;
 
 use std::vec;
 use led::Led;
 use source::Source;
 use structure::*;
+use sweep_line::*;
 use logic_gates::*;
 use circuit::*;
 
@@ -29,7 +31,8 @@ struct State {
 	dragging_index: Option<usize>,
 	drag_offset: Option<Point2<f32>>,
 	grid_image: Image,
-	wire_start: Option<Point2<f32>>
+	wire_start: Option<Point2<f32>>, 
+	segments: Vec<WireSegment>,
 }
 
 impl State {
@@ -48,6 +51,7 @@ impl State {
 			drag_offset: None,
 			grid_image: canvas_grid,
 			wire_start: None,
+			segments: Vec::new(),
 		}
 	}
 
@@ -86,7 +90,7 @@ impl EventHandler for State {
 
 				// Button for the leds
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Leds")).clicked() {
-					self.add_element[2] = !self.add_element[2];
+					self.add_element[2] = true;
 					// Set all other elements to false
     				for i in 0..self.add_element.len() {
         				if i != 2 {
@@ -98,6 +102,8 @@ impl EventHandler for State {
 						let mut led = LogicElements::Leds(Led::new());
 						let _ = led.load_image(ctx);
 						self.circuit.add_element(led);
+						// put the state back to false
+						self.add_element[2] = !self.add_element[2];
 					}
 				}
 
@@ -132,6 +138,12 @@ impl EventHandler for State {
             				self.add_element[i] = false;
         				}
     				}
+				}
+
+				// Simulate button
+				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Simulate")).clicked() {
+					find_intersections(&self.segments);
+					self.circuit.simulate();
 				}
 
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Quit")).clicked() {
@@ -283,6 +295,7 @@ impl EventHandler for State {
 					}
 				} else if ctx.mouse.button_just_released(input::mouse::MouseButton::Left) {
 					if let Some(start_point) = self.wire_start.take() {
+						// Check if a meaningful wire has been created (avoid dot wires)
 						if start_point != snapped_mouse_pos {
 							// Calculate the greater deviation
 							let dx = (snapped_mouse_pos.x - start_point.x).abs();
@@ -315,17 +328,15 @@ impl EventHandler for State {
 							};
 			
 							// Store the wire with a single segment
-							self.circuit.wires.push(Wire {
-								pins: vec![],
-								segments: vec![segment],
-							});
+							self.segments.push(segment);
 						}
 					}
 				}
 			}
 			
 			//* Logic to drag the component
-			if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) {
+			if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) && 
+			!self.add_element[3] {
     			let mouse_pos = ctx.mouse.position();
 
     			// Initiate dragging
@@ -406,34 +417,33 @@ impl EventHandler for State {
 			}
 		}
 
-		///////////////////////////////////////////////////////////
+		//---------------------------------------------------------
     	// DRAW WIRES
-    	///////////////////////////////////////////////////////////
-    	for wire in &self.circuit.wires {
-        	for segment in &wire.segments {
-				// Segments of the wire
-            	let line = vec![
-                	Point2 { x: segment.start.x, y: segment.start.y},
-                	Point2 { x: segment.end.x, y: segment.end.y},
-            	];
-            	let line_mesh = Mesh::new_line(ctx, &line, 4.0, Color::BLUE)?;
-            	canvas.draw(&line_mesh, DrawParam::default());
+    	//---------------------------------------------------------
+    	for segment in &self.segments {
+			// Segments of the wire
+            let line = vec![
+                Point2 { x: segment.start.x + 1.0, y: segment.start.y + 1.0},
+                Point2 { x: segment.end.x + 1.0, y: segment.end.y + 1.0},
+            ];
+            let line_mesh = Mesh::new_line(ctx, &line, 3.0, Color::BLUE)?;
+            canvas.draw(&line_mesh, DrawParam::default());
 
-				// Hitbox of the wire
-				/*let hitbox_mesh = Mesh::new_rectangle(
-					ctx,
-					DrawMode::stroke(1.0),
-					segment.hitbox,
-					Color::RED, 
-				)?;
-				canvas.draw(&hitbox_mesh, DrawParam::default());*/
-        	}
+			// Hitbox of the wire
+			/*let hitbox_mesh = Mesh::new_rectangle(
+				ctx,
+				DrawMode::stroke(1.0),
+				segment.hitbox,
+				Color::RED, 
+			)?;
+			canvas.draw(&hitbox_mesh, DrawParam::default());*/
+
     	}
-    	///////////////////////////////////////////////////////////
+    	//---------------------------------------------------------
 		
-		///////////////////////////////////////////////////////////
+		//---------------------------------------------------------
 		// HITBOXES
-		///////////////////////////////////////////////////////////
+		//---------------------------------------------------------
 		/*for component in &self.circuit.components {
 			// Get the component's main hitbox and pin hitboxes
 			let hitbox = component.get_hitbox();
@@ -459,7 +469,7 @@ impl EventHandler for State {
 				canvas.draw(&pin_mesh, DrawParam::default());
 			}
 		}*/
-		///////////////////////////////////////////////////////////
+		//---------------------------------------------------------
 		
         // Draw the GUI
         canvas.draw(&self.gui, DrawParam::default());

@@ -1,6 +1,7 @@
-use std::{clone, path::absolute, pin, vec};
+use std::{clone, collections::HashMap, path::absolute, pin, vec};
 use crate::structure::*;
 use ggez::{graphics::{Image, Rect}, mint::Point2, Context, GameResult};
+use multimap::MultiMap;
 
 // Logic gate structure
 #[derive(Debug)]
@@ -23,11 +24,11 @@ impl LogicGate {
         let gate = if !bus {
             // Create a simple logic gate
             LogicGate {
-                input: (0..num_inputs)
+                input: (1..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Single(Signal::Undefined),
                         cid: 0,
-                        pid: i + 1, // Assign unique pid starting from 1
+                        pid: i, // Assign unique pid starting from 1
                         ioc: 1,
                         hitbox: Rect {
                             x: 4.0,
@@ -76,11 +77,11 @@ impl LogicGate {
             // Create a bus logic gate
             LogicGate {
                 // Dynamically create `input` Pins with unique `pid` values
-                input: (0..num_inputs)
+                input: (1..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Each pin has `bits` signals
                         cid: 0,
-                        pid: i + 1, // Assign unique pid for each pin
+                        pid: i , // Assign unique pid for each pin
                         ioc: 1,
                         hitbox: Rect {
                             x: 4.0,
@@ -389,6 +390,15 @@ impl LogicGate {
         let out = &self.output;
         hitboxes.push(out.hitbox);
         hitboxes
+    }
+
+    pub fn store_pin_pos(&self, map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+        // get the position of all the pins from the reference pin and then store them 
+        for i in 0..self.num_input{
+            map.insert((self.ref_pin_pos.x as i32, (self.ref_pin_pos.y as i32) + i as i32 * 20), (self.id, i+1, 1));
+        }
+        // insert the output pin as well
+        map.insert((self.ref_pin_pos.x as i32 + 70, self.ref_pin_pos.y as i32 + 10), (self.id, self.num_input + 1, 0));
     }
 }
 

@@ -1,7 +1,9 @@
+
 use crate::structure::*;
 use ggez::mint::Point2;
 use ggez::graphics::{Image, Rect};
 use ggez::{Context, GameResult};
+use multimap::MultiMap;
 
 #[derive(Debug, Clone)]
 pub struct Source {
@@ -92,5 +94,10 @@ impl Source {
     pub fn source_pin_hitbox(&self) -> Vec<Rect>{
         let pin = &self.output;
         vec![pin.hitbox]
+    }
+
+    // Stores the the position of the pin and the ioc/pid
+    pub fn store_pin_pos(&self, map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+        map.insert((self.ref_pin_pos.x as i32, self.ref_pin_pos.y as i32), (self.id, 1, 0));
     }
 }

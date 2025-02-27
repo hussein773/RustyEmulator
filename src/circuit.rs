@@ -2,8 +2,10 @@ use ggez::graphics::Image;
 use ggez::mint::Point2;
 use ggez::{Context, graphics::Rect};
 use ggez::GameResult;
+use multimap::MultiMap;
+use std::path::Component;
 
-use crate::{led, logic_gates::*};
+use crate::logic_gates::*;
 use crate::source::*;
 use crate::structure::*;
 use crate::led::*;
@@ -123,6 +125,15 @@ impl LogicElements {
         }
     }
 
+    pub fn store_pin_pos(&self, pin_map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+        match self {
+            LogicElements::Gates(logic_gate) => logic_gate.store_pin_pos(pin_map),
+            LogicElements::Source(source) => source.store_pin_pos(pin_map),
+            LogicElements::Leds(led) => led.store_pin_pos(pin_map),
+            _ => todo!(),
+        }
+    }
+
 }
 
 impl Clone for LogicElements {
@@ -130,6 +141,7 @@ impl Clone for LogicElements {
         match self {
             LogicElements::Gates(logic_gate) => LogicElements::Gates(logic_gate.clone()),
             LogicElements::Source(source) => LogicElements::Source(source.clone()),
+            LogicElements::Leds(led) => LogicElements::Leds(led.clone()),
             _ => todo!(),
         }
     }
@@ -139,7 +151,8 @@ impl Clone for LogicElements {
 pub struct Circuit {
     pub components: Vec<LogicElements>,
     pub wires: Vec<Wire>,
-    pub component_id: usize
+    pub component_id: usize,
+    pub pin_grid: MultiMap<(i32, i32), (usize, usize, usize)>   
 }
 impl Circuit {
     // Create a new circuit
@@ -148,6 +161,7 @@ impl Circuit {
             components: Vec::new(),
             wires: Vec::new(),
             component_id: 1,
+            pin_grid: MultiMap::new(),
         }
     }
     
@@ -223,7 +237,6 @@ impl Circuit {
             _ => todo!(),
         }
         self.component_id += 1;
-        //println!("added component {:?}", component);
         self.components.push(component);
     }
 
@@ -233,7 +246,27 @@ impl Circuit {
     }
 
     pub fn simulate(&mut self) {
+        // save the position of all the pins in the pin_grid
+        self.pin_grid.clear();
+        for component in &self.components {
+            component.store_pin_pos(&mut self.pin_grid)
+        }
+
+        //----------------------------------------------------------------------------
+        println!("Pin Grid Contents:");
+        println!("------------------");
+        
+        for (pos, values) in &self.pin_grid {
+            print!("Position: ({}, {}) -> ", pos.0, pos.1);
+            for (cid, pid, ioc) in values {
+                print!("[CID: {}, PID: {}, IOC: {}] ", cid, pid, ioc);
+            }
+            println!(); 
+        }
+        //----------------------------------------------------------------------------
+
         // Check if all the connections are correct (contain a single source pin)
+        /* 
         for (index, wire) in self.wires.iter().enumerate() {
             // Buffer to hold the source pins
             let mut source_pins: Vec<&(usize, usize, usize)> = wire.pins.iter().filter(|&&(_, ioc, _)| ioc == 0).collect();
@@ -295,7 +328,7 @@ impl Circuit {
                     }
                 }
             }
-        }
+        }*/
     }
 
     // TODO: function need to be modified to account for possible components with more than 1 output

@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use crate::structure::*;
 use ggez::mint::Point2;
 use ggez::graphics::{Image, Rect};
 use ggez::{Context, GameResult};
+use multimap::MultiMap;
 
 #[derive(Debug, Clone)]
 pub struct Led {
@@ -39,7 +42,7 @@ impl Led {
         match self.input.value {
             PinValue::Single(signal) => {
                 let path = match signal {
-                    Signal::On => "/leds/normal/led_high.png",
+                    Signal::On => "/leds/normal/led_high_green.png",
                     Signal::Off=> "/leds/normal/led_low.png",
                     Signal::Undefined => "/leds/normal/led_undefined.png",
                 };
@@ -75,5 +78,9 @@ impl Led {
     pub fn led_pin_hitbox(&self) -> Vec<Rect>{
         let pin = &self.input;
         vec![pin.hitbox]
+    }
+
+    pub fn store_pin_pos(&self, map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+        map.insert((self.ref_pin_pos.x as i32, self.ref_pin_pos.y as i32), (self.id, 1, 1));
     }
 }

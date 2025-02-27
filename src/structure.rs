@@ -34,7 +34,13 @@ pub struct Pin {
     pub ioc: usize,     //* The IOC (Input Output Control) parameter indicates what's the purpouse of the pin, 0 = output, 1 = input, 2.. = control pins
     pub hitbox: Rect,
     //TODO: instead of 3 separate parameters unite them in a single tuple
-    //pub r#type: (usize, usize, usize),  
+}
+
+#[derive(Debug)]
+pub enum Event {
+    HorizontalStart(f32, f32, f32), 
+    HorizontalEnd(f32, f32, f32),   
+    Vertical(f32, f32, f32),       
 }
 
 #[derive(Debug, Clone)]
@@ -93,5 +99,4 @@ impl PartialEq for LogicGates {
             _ => false,
         }
     }
-    
 }
