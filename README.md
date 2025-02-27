@@ -1,4 +1,4 @@
-# Logic Simulator (Work in Progress)
+# Rusty Simulator (Work in Progress)
 
 Welcome to **Rusty Simulator**, a digital circuit simulator written in Rust! This project allows you to design, simulate, and test logic circuits with ease, making it an excellent tool for students, 
 hobbyists, and anyone interested in learning about digital circuits..
