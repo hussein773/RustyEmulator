@@ -1,4 +1,4 @@
-use std::{clone, collections::HashMap, path::absolute, pin, vec};
+use std::{clone, collections::HashMap, default, vec};
 use crate::structure::*;
 use ggez::{graphics::{Image, Rect}, mint::Point2, Context, GameResult};
 use multimap::MultiMap;
@@ -13,7 +13,7 @@ pub struct LogicGate {
     pub id: usize,
     pub position: Point2<f32>, 
     pub image: Option<Image>, 
-    pub hitbox: Rect,
+    pub hitbox: Hitbox,
     pub ref_pin_pos: Point2<f32>,
 }
 
@@ -24,23 +24,26 @@ impl LogicGate {
         let gate = if !bus {
             // Create a simple logic gate
             LogicGate {
-                input: (1..num_inputs)
+                input: (0..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Single(Signal::Undefined),
                         cid: 0,
                         pid: i, // Assign unique pid starting from 1
                         ioc: 1,
-                        hitbox: Rect {
-                            x: 4.0,
-                            y: {
-                                match gate_type {
-                                    2 => 33.5 + (20.0 * i as f32),
-                                    _ => 23.5 + (20.0 * i as f32),
-                                }
-                            },
-                            w: 5.0,
-                            h: 5.0, 
-                        }
+                        hitbox: Hitbox { 
+                            rect: Rect {
+                                x: 4.0,
+                                y: {
+                                    match gate_type {
+                                        2 => 33.5 + (20.0 * i as f32),
+                                        _ => 23.5 + (20.0 * i as f32),
+                                    }
+                                },
+                                w: 5.0,
+                                h: 5.0, 
+                            }, 
+                            r#type: HitboxType::Pin, 
+                        },
                     })
                     .collect(),
                 output: Pin {
@@ -48,11 +51,14 @@ impl LogicGate {
                     cid: 0,
                     pid: 1,
                     ioc: 0,
-                    hitbox: Rect {
-                        x: 73.5,
-                        y: 33.5,
-                        w: 5.0,
-                        h: 5.0,
+                    hitbox: Hitbox{ 
+                        rect: Rect {
+                            x: 73.5,
+                            y: 33.5,
+                            w: 5.0,
+                            h: 5.0,
+                        },
+                        r#type: HitboxType::Pin,
                     }
                 },
                 num_input: num_inputs,
@@ -69,7 +75,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 50.0, h: 50.0 },
+                hitbox: Hitbox{rect: Rect{ x: 0.0, y: 0.0, w: 50.0, h: 50.0 }, r#type: HitboxType::Component},
                 ref_pin_pos: Point2 { x: 6.0, y: 25.0 },
             }
             
@@ -77,23 +83,26 @@ impl LogicGate {
             // Create a bus logic gate
             LogicGate {
                 // Dynamically create `input` Pins with unique `pid` values
-                input: (1..num_inputs)
+                input: (0..num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Each pin has `bits` signals
                         cid: 0,
                         pid: i , // Assign unique pid for each pin
                         ioc: 1,
-                        hitbox: Rect {
-                            x: 4.0,
-                            y: {
-                                match gate_type {
-                                    2 => 33.5 + (20.0 * i as f32),
-                                    _ => 23.5 + (20.0 * i as f32),
-                                }
-                            },
-                            w: 5.0,
-                            h: 5.0, 
-                        }
+                        hitbox: Hitbox { 
+                            rect: Rect {
+                                x: 4.0,
+                                y: {
+                                    match gate_type {
+                                        2 => 33.5 + (20.0 * i as f32),
+                                        _ => 23.5 + (20.0 * i as f32),
+                                    }
+                                },
+                                w: 5.0,
+                                h: 5.0, 
+                            }, 
+                            r#type: HitboxType::Pin, 
+                        },
                     })
                     .collect(),
                 output: Pin {
@@ -101,11 +110,14 @@ impl LogicGate {
                     cid: 0,
                     pid: 1,
                     ioc: 0,
-                    hitbox: Rect {
-                        x: 73.5,
-                        y: 32.5,
-                        w: 5.0,
-                        h: 5.0,
+                    hitbox: Hitbox{
+                        rect: Rect {
+                            x: 73.5,
+                            y: 32.5,
+                            w: 5.0,
+                            h: 5.0,
+                        },
+                        r#type: HitboxType::Pin,
                     }
                 },
                 num_input: num_inputs,
@@ -122,7 +134,7 @@ impl LogicGate {
                 id: 0,
                 position: Point2 { x: 0.0, y: 0.0 },
                 image: None,
-                hitbox: Rect { x: 0.0, y: 0.0, w: 80.0, h: 80.0 },
+                hitbox: Hitbox{rect: Rect{ x: 0.0, y: 0.0, w: 50.0, h: 50.0 }, r#type: HitboxType::Component},
                 ref_pin_pos: Point2 { x: 6.0, y: 25.0 },
             }
         };
@@ -362,44 +374,44 @@ impl LogicGate {
     
         // Update each pin's position using the delta
         for pin in &mut self.input {
-            pin.hitbox.x += dx;
-            pin.hitbox.y += dy;
+            pin.hitbox.rect.x += dx;
+            pin.hitbox.rect.y += dy;
         }
         // Update also the output position
         let pin = &mut self.output;
-        pin.hitbox.x += dx;
-        pin.hitbox.y += dy;
+        pin.hitbox.rect.x += dx;
+        pin.hitbox.rect.y += dy;
     
         // Update the component's position
         self.position = Point2 { x: position.x, y: position.y };
-        self.hitbox.x = position.x;
-        self.hitbox.y = position.y;
+        self.hitbox.rect.x = position.x;
+        self.hitbox.rect.y = position.y;
 
         // Update the ref_pin position
         self.ref_pin_pos.x += dx;
         self.ref_pin_pos.y += dy;
     }
 
-    pub fn gate_pins_hitbox(&self) -> Vec<Rect>{
+    pub fn gate_pins_hitbox(&self) -> Vec<&Hitbox>{
         // Add the hitboxes of the input pins
-        let mut hitboxes: Vec<Rect> = vec![];
+        let mut hitboxes: Vec<&Hitbox> = vec![];
         for pin in &self.input {
-            hitboxes.push(pin.hitbox)
+            hitboxes.push(&pin.hitbox)
         }
         // Now add the output hitbox as well
         let out = &self.output;
-        hitboxes.push(out.hitbox);
+        hitboxes.push(&out.hitbox);
         hitboxes
     }
 
-    pub fn store_pin_pos(&self, map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+    /*pub fn store_pin_pos(&self, map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
         // get the position of all the pins from the reference pin and then store them 
         for i in 0..self.num_input{
             map.insert((self.ref_pin_pos.x as i32, (self.ref_pin_pos.y as i32) + i as i32 * 20), (self.id, i+1, 1));
         }
         // insert the output pin as well
         map.insert((self.ref_pin_pos.x as i32 + 70, self.ref_pin_pos.y as i32 + 10), (self.id, self.num_input + 1, 0));
-    }
+    }*/
 }
 
 

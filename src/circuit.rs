@@ -3,12 +3,12 @@ use ggez::mint::Point2;
 use ggez::{Context, graphics::Rect};
 use ggez::GameResult;
 use multimap::MultiMap;
-use std::path::Component;
 
 use crate::logic_gates::*;
 use crate::source::*;
 use crate::structure::*;
 use crate::led::*;
+use crate::connection_logic::{detect_collisions, group_connected_pins};
 
 #[derive(Debug)]
 pub enum LogicElements {
@@ -73,14 +73,14 @@ impl LogicElements {
 
     pub fn get_hitbox(&self) -> Rect{
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.hitbox,
-            LogicElements::Source(source) => source.hitbox,
-            LogicElements::Leds(led) => led.hitbox,
+            LogicElements::Gates(logic_gate) => logic_gate.hitbox.rect,
+            LogicElements::Source(source) => source.hitbox.rect,
+            LogicElements::Leds(led) => led.hitbox.rect,
             _ => todo!()
         }
     }
 
-    pub fn get_pins_hitbox(&self) -> Vec<Rect>{
+    pub fn get_pins_hitbox(&self) -> Vec<&Hitbox>{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.gate_pins_hitbox(),
             LogicElements::Source(source) => source.source_pin_hitbox(),
@@ -125,14 +125,14 @@ impl LogicElements {
         }
     }
 
-    pub fn store_pin_pos(&self, pin_map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
+    /*pub fn store_pin_pos(&self, pin_map: &mut MultiMap<(i32, i32), (usize, usize, usize)>){
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.store_pin_pos(pin_map),
             LogicElements::Source(source) => source.store_pin_pos(pin_map),
             LogicElements::Leds(led) => led.store_pin_pos(pin_map),
             _ => todo!(),
         }
-    }
+    }*/
 
 }
 
@@ -150,18 +150,18 @@ impl Clone for LogicElements {
 
 pub struct Circuit {
     pub components: Vec<LogicElements>,
+    pub segments: Vec<WireSegment>,
     pub wires: Vec<Wire>,
-    pub component_id: usize,
-    pub pin_grid: MultiMap<(i32, i32), (usize, usize, usize)>   
+    pub component_id: usize,  
 }
 impl Circuit {
     // Create a new circuit
     pub fn new() -> Self {
         Self {
             components: Vec::new(),
+            segments: Vec::new(),
             wires: Vec::new(),
             component_id: 1,
-            pin_grid: MultiMap::new(),
         }
     }
     
@@ -246,28 +246,21 @@ impl Circuit {
     }
 
     pub fn simulate(&mut self) {
-        // save the position of all the pins in the pin_grid
-        self.pin_grid.clear();
+        // get the hitboxes of all the pins and segments
+        let mut hitboxes= Vec::new();
         for component in &self.components {
-            component.store_pin_pos(&mut self.pin_grid)
+            hitboxes.extend(component.get_pins_hitbox());
+        } 
+        for seg in &self.segments {
+            hitboxes.push(&seg.hitbox);
         }
 
-        //----------------------------------------------------------------------------
-        println!("Pin Grid Contents:");
-        println!("------------------");
-        
-        for (pos, values) in &self.pin_grid {
-            print!("Position: ({}, {}) -> ", pos.0, pos.1);
-            for (cid, pid, ioc) in values {
-                print!("[CID: {}, PID: {}, IOC: {}] ", cid, pid, ioc);
-            }
-            println!(); 
-        }
-        //----------------------------------------------------------------------------
+        // Get the group of connected pins
+        let cell_size = 50.0; 
+        let connected_pins= group_connected_pins(&hitboxes, cell_size);
 
         // Check if all the connections are correct (contain a single source pin)
-        /* 
-        for (index, wire) in self.wires.iter().enumerate() {
+        /*for (index, wire) in self.wires.iter().enumerate() {
             // Buffer to hold the source pins
             let mut source_pins: Vec<&(usize, usize, usize)> = wire.pins.iter().filter(|&&(_, ioc, _)| ioc == 0).collect();
             if source_pins.len() > 1 {

@@ -11,7 +11,7 @@ pub struct Source {
     pub output: Pin,
     pub position: Point2<f32>,
     pub image: Option<Image>, 
-    pub hitbox: Rect,
+    pub hitbox: Hitbox,
     pub ref_pin_pos: Point2<f32>,  
 }
 impl Source {
@@ -25,11 +25,17 @@ impl Source {
                     _ => panic!("Invalid source type")
                 },
                 cid: 0, pid: 1, ioc: 0,
-                hitbox:  Rect { x: 70.5, y: 34.5, w: 5.0, h: 5.0 },
+                hitbox:  Hitbox { 
+                        rect: Rect { x: 70.5, y: 34.5, w: 5.0, h: 5.0 },
+                        r#type: HitboxType::Pin,
+                    },
                 },
             position: Point2 { x: 0.0, y: 0.0 },
             image: None,
-            hitbox: Rect { x: 46.0, y: 27.0, w: 20.0, h: 20.0 },
+            hitbox: Hitbox { 
+                    rect: Rect { x: 46.0, y: 27.0, w: 20.0, h: 20.0 },
+                    r#type: HitboxType::Component,
+                },
             ref_pin_pos: Point2{ x: 73.0, y: 37.0},
         }
     }
@@ -75,25 +81,25 @@ impl Source {
         let dy = position.y - self.position.y;
 
         // Maintain the local offset of the hitbox relative to the source
-        let hitbox_offset = Point2{x: self.hitbox.x - self.position.x, y: self.hitbox.y - self.position.y};
+        let hitbox_offset = Point2{x: self.hitbox.rect.x - self.position.x, y: self.hitbox.rect.y - self.position.y};
         self.position = position;
 
         // Apply the offset correctly in global coordinates
-        self.hitbox.x = position.x + hitbox_offset.x;
-        self.hitbox.y = position.y + hitbox_offset.y;
+        self.hitbox.rect.x = position.x + hitbox_offset.x;
+        self.hitbox.rect.y = position.y + hitbox_offset.y;
 
         // Update the pin's hitbox position as well
-        self.output.hitbox.x += dx ;
-        self.output.hitbox.y += dy ;
+        self.output.hitbox.rect.x += dx ;
+        self.output.hitbox.rect.y += dy ;
 
         // Update the ref_pin position
         self.ref_pin_pos.x += dx;
         self.ref_pin_pos.y += dy;
     }
 
-    pub fn source_pin_hitbox(&self) -> Vec<Rect>{
+    pub fn source_pin_hitbox(&self) -> Vec<&Hitbox>{
         let pin = &self.output;
-        vec![pin.hitbox]
+        vec![&pin.hitbox]
     }
 
     // Stores the the position of the pin and the ioc/pid

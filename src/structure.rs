@@ -1,5 +1,4 @@
 // structure.rs
-
 use ggez::{graphics::Rect, mint::Point2};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -32,22 +31,28 @@ pub struct Pin {
     pub cid: usize,
     pub pid: usize,
     pub ioc: usize,     //* The IOC (Input Output Control) parameter indicates what's the purpouse of the pin, 0 = output, 1 = input, 2.. = control pins
-    pub hitbox: Rect,
+    pub hitbox: Hitbox,
     //TODO: instead of 3 separate parameters unite them in a single tuple
 }
 
-#[derive(Debug)]
-pub enum Event {
-    HorizontalStart(f32, f32, f32), 
-    HorizontalEnd(f32, f32, f32),   
-    Vertical(f32, f32, f32),       
+#[derive(Debug, Clone, PartialEq)]
+pub enum HitboxType{
+    Pin,
+    Wire,
+    Component,
+}
+
+#[derive(Debug, Clone)]
+pub struct Hitbox{
+    pub rect: Rect, 
+    pub r#type: HitboxType,
 }
 
 #[derive(Debug, Clone)]
 pub struct WireSegment {
-    pub start: Point2<f32>, // Start coordinates of the segment
-    pub end: Point2<f32>,   // End coordinates of the segment
-    pub hitbox: Rect,       // Rect for the hitbox
+    pub start: Point2<f32>,   // Start coordinates of the segment
+    pub end: Point2<f32>,     // End coordinates of the segment
+    pub hitbox: Hitbox,       // Hitbox
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +102,43 @@ impl PartialEq for LogicGates {
             (LogicGates::Xor, LogicGates::Xor) => true,
             (LogicGates::Xnor, LogicGates::Xnor) => true,
             _ => false,
+        }
+    }
+}
+
+pub struct UnionFind {
+    pub parent: Vec<usize>,
+    pub rank: Vec<usize>,
+}
+
+impl UnionFind {
+    pub fn new(size: usize) -> Self {
+        Self {
+            parent: (0..size).collect(), // Each node is its own parent
+            rank: vec![0; size],
+        }
+    }
+
+    pub fn find(&mut self, x: usize) -> usize {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x]); // Path compression
+        }
+        self.parent[x]
+    }
+
+    pub fn union(&mut self, x: usize, y: usize) {
+        let root_x = self.find(x);
+        let root_y = self.find(y);
+
+        if root_x != root_y {
+            if self.rank[root_x] > self.rank[root_y] {
+                self.parent[root_y] = root_x;
+            } else if self.rank[root_x] < self.rank[root_y] {
+                self.parent[root_x] = root_y;
+            } else {
+                self.parent[root_y] = root_x;
+                self.rank[root_x] += 1;
+            }
         }
     }
 }

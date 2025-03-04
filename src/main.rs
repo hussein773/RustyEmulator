@@ -2,14 +2,14 @@ mod circuit;
 mod logic_gates;
 mod source;
 mod structure;
-mod sweep_line;
+mod connection_logic;
 mod led;
 
 use std::vec;
 use led::Led;
 use source::Source;
 use structure::*;
-use sweep_line::*;
+use connection_logic::*;
 use logic_gates::*;
 use circuit::*;
 
@@ -32,7 +32,6 @@ struct State {
 	drag_offset: Option<Point2<f32>>,
 	grid_image: Image,
 	wire_start: Option<Point2<f32>>, 
-	segments: Vec<WireSegment>,
 }
 
 impl State {
@@ -51,7 +50,6 @@ impl State {
 			drag_offset: None,
 			grid_image: canvas_grid,
 			wire_start: None,
-			segments: Vec::new(),
 		}
 	}
 
@@ -142,7 +140,6 @@ impl EventHandler for State {
 
 				// Simulate button
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Simulate")).clicked() {
-					find_intersections(&self.segments);
 					self.circuit.simulate();
 				}
 
@@ -306,11 +303,14 @@ impl EventHandler for State {
 								WireSegment {
 									start: start_point,
 									end: Point2 { x: snapped_mouse_pos.x, y: start_point.y },
-									hitbox: Rect {
-										x: start_point.x.min(snapped_mouse_pos.x),
-										y: start_point.y - 5.0,
-										w: dx,
-										h: 10.0,
+									hitbox: Hitbox {
+										rect: Rect {
+											x: start_point.x.min(snapped_mouse_pos.x),
+											y: start_point.y - 5.0,
+											w: dx,
+											h: 10.0,
+										},
+										r#type: HitboxType::Wire,
 									},
 								}
 							} else {
@@ -318,17 +318,20 @@ impl EventHandler for State {
 								WireSegment {
 									start: start_point,
 									end: Point2 { x: start_point.x, y: snapped_mouse_pos.y },
-									hitbox: Rect {
-										x: start_point.x - 5.0,
-										y: start_point.y.min(snapped_mouse_pos.y),
-										w: 10.0,
-										h: dy,
+									hitbox: Hitbox {
+										rect: Rect {
+											x: start_point.x - 5.0,
+											y: start_point.y.min(snapped_mouse_pos.y),
+											w: 10.0,
+											h: dy,
+										},
+										r#type: HitboxType::Wire,
 									},
 								}
 							};
 			
-							// Store the wire with a single segment
-							self.segments.push(segment);
+							// Store the segment
+							self.circuit.segments.push(segment);
 						}
 					}
 				}
@@ -420,7 +423,7 @@ impl EventHandler for State {
 		//---------------------------------------------------------
     	// DRAW WIRES
     	//---------------------------------------------------------
-    	for segment in &self.segments {
+    	for segment in &self.circuit.segments {
 			// Segments of the wire
             let line = vec![
                 Point2 { x: segment.start.x + 1.0, y: segment.start.y + 1.0},
@@ -433,7 +436,7 @@ impl EventHandler for State {
 			/*let hitbox_mesh = Mesh::new_rectangle(
 				ctx,
 				DrawMode::stroke(1.0),
-				segment.hitbox,
+				segment.hitbox.rect,
 				Color::RED, 
 			)?;
 			canvas.draw(&hitbox_mesh, DrawParam::default());*/
