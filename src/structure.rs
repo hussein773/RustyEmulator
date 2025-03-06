@@ -1,3 +1,5 @@
+use std::fmt;
+
 // structure.rs
 use ggez::{graphics::Rect, mint::Point2};
 
@@ -6,6 +8,16 @@ pub enum Signal {
     Off, 
     On, 
     Undefined, 
+}
+impl fmt::Display for Signal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Signal::Off => "OFF",
+            Signal::On => "ON",
+            Signal::Undefined => "UNDEFINED",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +37,18 @@ pub enum PinValue {
     Multiple(Vec<Signal>),
 }
 
+impl fmt::Display for PinValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PinValue::Single(signal) => write!(f, "{}", signal),
+            PinValue::Multiple(signals) => {
+                let formatted_signals: Vec<String> = signals.iter().map(|s| s.to_string()).collect();
+                write!(f, "[{}]", formatted_signals.join(", "))
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Pin {
     pub value: PinValue,
@@ -37,7 +61,7 @@ pub struct Pin {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HitboxType{
-    Pin,
+    Pin(usize, usize, usize),
     Wire,
     Component,
 }
@@ -50,9 +74,9 @@ pub struct Hitbox{
 
 #[derive(Debug, Clone)]
 pub struct WireSegment {
-    pub start: Point2<f32>,   // Start coordinates of the segment
-    pub end: Point2<f32>,     // End coordinates of the segment
-    pub hitbox: Hitbox,       // Hitbox
+    pub start: Point2<f32>,   
+    pub end: Point2<f32>,     
+    pub hitbox: Hitbox,       
 }
 
 #[derive(Debug, Clone)]

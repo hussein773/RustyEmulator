@@ -27,7 +27,7 @@ impl Source {
                 cid: 0, pid: 1, ioc: 0,
                 hitbox:  Hitbox { 
                         rect: Rect { x: 70.5, y: 34.5, w: 5.0, h: 5.0 },
-                        r#type: HitboxType::Pin,
+                        r#type: HitboxType::Pin(0, 1, 0),
                     },
                 },
             position: Point2 { x: 0.0, y: 0.0 },
@@ -40,7 +40,7 @@ impl Source {
         }
     }
 
-    pub fn get_pin(&mut self, ioc: usize, pid: usize) -> &mut Pin {
+    pub fn get_pin(&mut self, pid: usize, ioc: usize) -> &mut Pin {
         match ioc {
             0 => {
                 // For output pins (ioc == 0), the `id` should be checked against the `output` pin's `pid`.
@@ -57,8 +57,12 @@ impl Source {
     pub fn set_id(&mut self, id: usize) {
         self.id = id;
     
-        // Assign the `cid` of the `output` pin to match `self.id`
+        // Assign the cid of the output pin to match self.id
         self.output.cid = self.id;
+        // Asign the cid for the hitbox as well
+        if let HitboxType::Pin(a,_ ,_ ) = &mut self.output.hitbox.r#type{
+            *a = id;
+        }
     }
 
     pub fn load_source_image(&mut self, ctx: &mut Context) -> GameResult<()> {
@@ -97,9 +101,9 @@ impl Source {
         self.ref_pin_pos.y += dy;
     }
 
-    pub fn source_pin_hitbox(&self) -> Vec<&Hitbox>{
+    pub fn source_pin_hitbox(&self) -> Vec<Hitbox>{
         let pin = &self.output;
-        vec![&pin.hitbox]
+        vec![pin.hitbox.clone()]
     }
 
     // Stores the the position of the pin and the ioc/pid

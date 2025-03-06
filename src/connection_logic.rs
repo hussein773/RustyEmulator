@@ -22,12 +22,12 @@ fn insert_hitbox_in_grid(
 }
 
 // Detect collisions between hitboxes
-pub fn detect_collisions(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<(usize, usize)> {
+pub fn detect_collisions(hitboxes: &[Hitbox], cell_size: f32) -> Vec<(usize, usize)> {
     let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
     let mut unique_collisions: HashSet<(usize, usize)> = HashSet::new();
 
     // Insert hitboxes into the grid
-    for (i, &hitbox) in hitboxes.iter().enumerate() {
+    for (i, hitbox) in hitboxes.iter().enumerate() {
         insert_hitbox_in_grid(&mut grid, hitbox, i, cell_size);
     }
 
@@ -38,11 +38,6 @@ pub fn detect_collisions(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<(usize, us
                 if hitboxes[a].rect.overlaps(&hitboxes[b].rect) {
                     let collision = if a < b { (a, b) } else { (b, a) };
                     unique_collisions.insert(collision);
-                    /*println!(
-                        "Collision detected between Hitbox {} ({:?}) and Hitbox {} ({:?})",
-                        a, hitboxes[a],
-                        b, hitboxes[b]
-                    );*/
                 }
             }
         }
@@ -51,7 +46,7 @@ pub fn detect_collisions(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<(usize, us
     unique_collisions.into_iter().collect()
 }
 
-pub fn group_connected_pins(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<HashSet<usize>> {
+pub fn group_connected_pins(hitboxes: &[Hitbox], cell_size: f32) -> Vec<HashSet<usize>> {
     let collisions = detect_collisions(hitboxes, cell_size); // Get colliding pairs
     let mut uf = UnionFind::new(hitboxes.len());
 
@@ -73,7 +68,7 @@ pub fn group_connected_pins(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<HashSet
 
     for group in groups.values() {
         let pin_group: HashSet<usize> = group.iter()
-            .filter(|&&i| matches!(hitboxes[i].r#type, HitboxType::Pin))
+            .filter(|&&i| matches!(hitboxes[i].r#type, HitboxType::Pin(..)))
             .cloned()
             .collect();
 
@@ -83,12 +78,19 @@ pub fn group_connected_pins(hitboxes: &[&Hitbox], cell_size: f32) -> Vec<HashSet
     }
 
     // Print detected pin groups
-    println!("\n==== Connected Pin Groups ====");
+    /*println!("\n==== Connected Pin Groups ====");
     for (i, group) in pin_groups.iter().enumerate() {
-        let pins: Vec<String> = group.iter().map(|&index| format!("Pin {}", index)).collect();
+        let pins: Vec<String> = group.iter().map(|&index| {
+            // Destructure the Pin type and extract the 3 usize values
+            if let HitboxType::Pin(a, b, c) = hitboxes[index].r#type {
+                format!("Pin {} (CID: {}, PID: {}, IOC: {})", index, a, b, c)
+            } else {
+                format!("Pin {}", index)
+            }
+        }).collect();
         println!("Group {}: {}", i + 1, pins.join(", "));
     }
-    println!("==============================\n");
+    println!("==============================\n");*/
 
     pin_groups
 }

@@ -24,25 +24,25 @@ impl LogicGate {
         let gate = if !bus {
             // Create a simple logic gate
             LogicGate {
-                input: (0..num_inputs)
+                input: (1..=num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Single(Signal::Undefined),
                         cid: 0,
-                        pid: i, // Assign unique pid starting from 1
+                        pid: i, 
                         ioc: 1,
                         hitbox: Hitbox { 
                             rect: Rect {
                                 x: 4.0,
                                 y: {
                                     match gate_type {
-                                        2 => 33.5 + (20.0 * i as f32),
-                                        _ => 23.5 + (20.0 * i as f32),
+                                        2 => 33.5 + (20.0 * (i-1) as f32),
+                                        _ => 23.5 + (20.0 * (i-1) as f32),
                                     }
                                 },
                                 w: 5.0,
                                 h: 5.0, 
                             }, 
-                            r#type: HitboxType::Pin, 
+                            r#type: HitboxType::Pin(0, i, 1), 
                         },
                     })
                     .collect(),
@@ -58,7 +58,7 @@ impl LogicGate {
                             w: 5.0,
                             h: 5.0,
                         },
-                        r#type: HitboxType::Pin,
+                        r#type: HitboxType::Pin(0, 1, 0),
                     }
                 },
                 num_input: num_inputs,
@@ -83,25 +83,25 @@ impl LogicGate {
             // Create a bus logic gate
             LogicGate {
                 // Dynamically create `input` Pins with unique `pid` values
-                input: (0..num_inputs)
+                input: (1..=num_inputs)
                     .map(|i| Pin {
                         value: PinValue::Multiple(vec![Signal::Undefined; bits]), // Each pin has `bits` signals
                         cid: 0,
-                        pid: i , // Assign unique pid for each pin
+                        pid: i, 
                         ioc: 1,
                         hitbox: Hitbox { 
                             rect: Rect {
                                 x: 4.0,
                                 y: {
                                     match gate_type {
-                                        2 => 33.5 + (20.0 * i as f32),
-                                        _ => 23.5 + (20.0 * i as f32),
+                                        2 => 33.5 + (20.0 * (i-1) as f32),
+                                        _ => 23.5 + (20.0 * (i-1) as f32),
                                     }
                                 },
                                 w: 5.0,
                                 h: 5.0, 
                             }, 
-                            r#type: HitboxType::Pin, 
+                            r#type: HitboxType::Pin(0, i, 1), 
                         },
                     })
                     .collect(),
@@ -117,7 +117,7 @@ impl LogicGate {
                             w: 5.0,
                             h: 5.0,
                         },
-                        r#type: HitboxType::Pin,
+                        r#type: HitboxType::Pin(0, 1, 0),
                     }
                 },
                 num_input: num_inputs,
@@ -302,13 +302,21 @@ impl LogicGate {
         // Assign the cid of all input pins to match `self.id`
         for pin in &mut self.input {
             pin.cid = self.id;
+            // While at it change the cid of the hitboxes as well
+            if let HitboxType::Pin(a, _, _) = &mut pin.hitbox.r#type {
+                *a = id;
+            }
         }
     
         // Assign the `cid` of the `output` pin to match `self.id`
         self.output.cid = self.id;
+        // Also here add the cid of the output hitbox
+        if let HitboxType::Pin(a, _, _) = &mut self.output.hitbox.r#type {
+            *a = id;
+        }
     }
 
-    pub fn get_pin(&mut self, ioc: usize, pid: usize) -> &mut Pin {
+    pub fn get_pin(&mut self, pid: usize, ioc: usize) -> &mut Pin {
         match ioc {
             0 => {
                 // For output pins (ioc == 0), the `id` should be checked against the `output` pin's `pid`.
@@ -392,15 +400,15 @@ impl LogicGate {
         self.ref_pin_pos.y += dy;
     }
 
-    pub fn gate_pins_hitbox(&self) -> Vec<&Hitbox>{
+    pub fn gate_pins_hitbox(&self) -> Vec<Hitbox>{
         // Add the hitboxes of the input pins
-        let mut hitboxes: Vec<&Hitbox> = vec![];
+        let mut hitboxes: Vec<Hitbox> = vec![];
         for pin in &self.input {
-            hitboxes.push(&pin.hitbox)
+            hitboxes.push(pin.hitbox.clone())
         }
         // Now add the output hitbox as well
         let out = &self.output;
-        hitboxes.push(&out.hitbox);
+        hitboxes.push(out.hitbox.clone());
         hitboxes
     }
 

@@ -47,17 +47,18 @@ impl LogicElements {
     // Function to elaborate the output
     pub fn get_output(&mut self) {
         match self {
-            LogicElements::Gates(logic_gate) => {
-                logic_gate.get_output();
-            }
+            LogicElements::Gates(logic_gate) => logic_gate.get_output(),
+            LogicElements::Source(_) => (),
+            LogicElements::Leds(_) => (),
             _ => todo!(),
         }
     }
 
-    pub fn get_pin(&mut self, ioc:usize, pid:usize) -> &mut Pin{
+    pub fn get_pin(&mut self, pid:usize, ioc:usize) -> &mut Pin{
         match self {
-            LogicElements::Gates(logic_gate) => logic_gate.get_pin(ioc, pid),
-            LogicElements::Source(source) => source.get_pin(ioc, pid),
+            LogicElements::Gates(logic_gate) => logic_gate.get_pin(pid, ioc),
+            LogicElements::Source(source) => source.get_pin(pid, ioc),
+            LogicElements::Leds(led) => led.get_pin(pid, ioc),
             _ => todo!("rest of the componens"),
         }
     }
@@ -80,7 +81,7 @@ impl LogicElements {
         }
     }
 
-    pub fn get_pins_hitbox(&self) -> Vec<&Hitbox>{
+    pub fn get_pins_hitbox(&self) -> Vec<Hitbox>{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.gate_pins_hitbox(),
             LogicElements::Source(source) => source.source_pin_hitbox(),
@@ -98,11 +99,11 @@ impl LogicElements {
         }
     }
 
-    pub fn get_image(&self) -> Option<Image>{
+    pub fn get_image(&self, ctx: &mut Context) -> Option<Image>{
         match self {
             LogicElements::Gates(logic_gate) => logic_gate.image.clone(),
             LogicElements::Source(source) => source.image.clone(),
-            LogicElements::Leds(led) => led.image.clone(),
+            LogicElements::Leds(led) => led.clone().update_led_image(ctx),
             _ => todo!(),
         }
     }
@@ -252,7 +253,7 @@ impl Circuit {
             hitboxes.extend(component.get_pins_hitbox());
         } 
         for seg in &self.segments {
-            hitboxes.push(&seg.hitbox);
+            hitboxes.push(seg.hitbox.clone());
         }
 
         // Get the group of connected pins
@@ -260,13 +261,24 @@ impl Circuit {
         let connected_pins= group_connected_pins(&hitboxes, cell_size);
 
         // Check if all the connections are correct (contain a single source pin)
-        /*for (index, wire) in self.wires.iter().enumerate() {
+        for (index, group) in connected_pins.iter().enumerate() {
             // Buffer to hold the source pins
-            let mut source_pins: Vec<&(usize, usize, usize)> = wire.pins.iter().filter(|&&(_, ioc, _)| ioc == 0).collect();
+            let mut source_pins: Vec<(usize, usize, usize)> = group.iter()
+            .filter_map(|&i| {
+                if let HitboxType::Pin(a, b, c) = hitboxes[i].r#type {
+                    if c == 0 {
+                        Some((a, b, c))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
             if source_pins.len() > 1 {
                 panic!(
-                    "Short circuit detected in connection {}: {:?}. More than one source pin (ioc = 0) found.",
-                    index, wire
+                    "More than one source pin (ioc = 0) found in group {index}."
                 );
             }
     
@@ -274,54 +286,47 @@ impl Circuit {
             // Propagate the signal of the source pin to the other pin in the connection
             let source = source_pins.pop();
     
-            if let Some(&(cid, ioc, pid)) = source {
+            if let Some((cid, ioc, pid)) = source {
                 // Access the source pin using the get_pin method
                 let source_value = self.components[cid-1].get_pin(ioc, pid).value.clone();
-                
-                /*println!(
-                    "Propagating signal from source pin: cid = {}, ioc = {}, pid = {}, value = {:?}",
-                    cid, ioc, pid, source_value
-                );*/
+                //println!("value of source pin ({}, {}, {}) is {}", cid, pid, ioc, source_value);
     
                 // Propagate the source signal to all other pins in the connection
-                for &(target_cid, target_ioc, target_pid) in &wire.pins {
-                    if target_cid == cid && target_ioc == ioc && target_pid == pid {
-                        // Skip the source pin itself
-                        continue;
+                for &target_index in group {
+                    if let HitboxType::Pin(target_cid, target_ioc, target_pid) = hitboxes[target_index].r#type {
+                        if target_cid == cid && target_ioc == ioc && target_pid == pid {
+                            // Skip the source pin itself
+                            continue;
+                        }
+        
+                        // Get the target pin and set its value
+                        self.components[target_cid - 1]
+                            .get_pin(target_ioc, target_pid)
+                            .value = source_value.clone();
                     }
-    
-                    // Get the target pin and set its value
-                    self.components[target_cid-1]
-                        .get_pin(target_ioc, target_pid)
-                        .value = source_value.clone(); 
                 }
             } else {
-                // If no source pin exists then set all pins to undefined
+                // If no source pin exists, set all pins in the group to undefined
                 println!(
-                    "No source pin found in connection {}: {:?}. Setting all pins to undefined.",
-                    index, wire
+                    "No source pin found in connection {}. Setting all pins to undefined.",
+                    index
                 );
-                for &(target_cid, target_ioc, target_pid) in &wire.pins {
-                    self.components[target_cid-1]
-                        .get_pin(target_ioc, target_pid)
-                        .value = PinValue::Single(Signal::Undefined);
+        
+                for &target_index in group {
+                    if let HitboxType::Pin(target_cid, target_ioc, target_pid) = hitboxes[target_index].r#type {
+                        self.components[target_cid - 1]
+                            .get_pin(target_ioc, target_pid)
+                            .value = PinValue::Single(Signal::Undefined);
+                    }
                 }
             }
             // After propagating the signals get the output of each component if the componenet
             // needs to evaluate the output
             for component in &mut self.components {
-                match component {
-                    LogicElements::Source(_) => {
-                        // Doesn't need to evaluate the inputs (no input component)
-                        continue;
-                    }
-                    _ => {
-                        // Call get_output for all other components
-                        component.get_output();
-                    }
-                }
+                // Call get_output for all other components
+                component.get_output();
             }
-        }*/
+        }
     }
 
     // TODO: function need to be modified to account for possible components with more than 1 output

@@ -42,7 +42,7 @@ impl State {
 		Self { 
 			gui: Gui::new(ctx),
 			circuit: Circuit::new(), 
-			add_element: vec![false; 6],
+			add_element: vec![false; 7],
 			selected_gate: None,
 			selected_source: None,
 			input_number: 2,
@@ -140,7 +140,7 @@ impl EventHandler for State {
 
 				// Simulate button
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Simulate")).clicked() {
-					self.circuit.simulate();
+					self.add_element[6] = !self.add_element[6];
 				}
 
 				if ui.add_sized(UI_BUTTON_SIZE, egui::Button::new("Quit")).clicked() {
@@ -275,7 +275,7 @@ impl EventHandler for State {
 				println!("{:?}", ctx.mouse.position());
 			}
 
-			//* Wire logic
+			//* -------------------------------Wire logic-------------------------------
 			if self.add_element[3] {
 				// The grid size indicates the distance between 2 points in the grid
 				let grid_size = 10.0;
@@ -336,8 +336,9 @@ impl EventHandler for State {
 					}
 				}
 			}
+			//* ------------------------------------------------------------------------
 			
-			//* Logic to drag the component
+			//* -------------------Logic to drag the component--------------------------
 			if ctx.mouse.button_pressed(input::mouse::MouseButton::Left) && 
 			!self.add_element[3] {
     			let mouse_pos = ctx.mouse.position();
@@ -401,6 +402,13 @@ impl EventHandler for State {
     			self.dragging_index = None;
     			self.drag_offset = None;
 			}
+			//* -------------------------------------------------------------------
+
+			//* -------Simulation---------
+			if self.add_element[6] {
+				self.circuit.simulate();
+			}
+			//* --------------------------
 		});
 		self.gui.update(ctx);
 		Ok(())
@@ -412,7 +420,7 @@ impl EventHandler for State {
 		canvas.draw(&self.grid_image, DrawParam::default());
         // Draw all the components's images by iterating over the components vec
 		for component in self.circuit.components.iter() {
-			if let Some(image) = component.get_image() {
+			if let Some(image) = component.get_image(ctx) {
 				let draw_params = DrawParam::default()
 					.dest(component.get_position())
 					.scale(ggez::glam::Vec2::new(0.5, 0.5)); 
@@ -466,7 +474,7 @@ impl EventHandler for State {
 				let pin_mesh = Mesh::new_rectangle(
 					ctx,
 					DrawMode::stroke(2.0),
-					pin_hitbox,
+					pin_hitbox.rect,
 					Color::BLUE, 
 				)?;
 				canvas.draw(&pin_mesh, DrawParam::default());
